@@ -1,0 +1,29 @@
+{
+  "name": "por_verifier_server",
+  "version": "1.0.0",
+  "description": "HTTP server for plonky2_por verification",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch --env-file=.env src/index.js",
+    "test": "jest --silent"
+  },
+  "dependencies": {
+    "axios": "1.9.0",
+    "crypto": "1.0.1",
+    "express": "4.21.2",
+    "ipaddr.js": "2.2.0",
+    "sqlite3": "5.1.7",
+    "unzipper": "0.10.14"
+  },
+  "devDependencies": {
+    "jest": "29.7.0",
+    "supertest": "6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "./tests/setup.js"
+    ]
+  }
+}
