@@ -1,11 +1,15 @@
-# nodejs files
-node_modules
+# js/ts files
+node_modules/
+dist/
 
 # database
 data/
 
 # temporary copy of por_v2 to build docker while otter-sec/por_v2 is not public (can be removed after)
-por_v2
+por_v2/
 
 # sensitive information
 .env
+
+# configuration files
+.vscode/

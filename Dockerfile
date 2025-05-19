@@ -19,9 +19,10 @@ RUN useradd -m node
 # copy the server code
 COPY . /app
 
-# install dependencies
+# install dependencies and build
 WORKDIR /app
 RUN npm install
+RUN npm run build
 
 # create database directory and set permissions
 RUN mkdir -p /app/data && chown -R node:node /app/data

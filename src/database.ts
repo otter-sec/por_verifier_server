@@ -1,15 +1,15 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import fs from 'fs';
 
 // Ensure database directory exists
-const dbDir = path.join(__dirname, '../data');
+const dbDir: string = path.join(__dirname, '../data');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const dbPath = path.join(dbDir, 'verifications.db');
-const db = new sqlite3.Database(dbPath, (err) => {
+const dbPath: string = path.join(dbDir, 'verifications.db');
+const db: sqlite3.Database = new (sqlite3.verbose().Database)(dbPath, (err: Error | null) => {
   if (err) {
     console.error('Error opening database:', err);
     process.exit(1);
@@ -28,11 +28,29 @@ db.serialize(() => {
   )`);
 });
 
+interface Verification {
+  id: number;
+  file_hash: string;
+  proof_timestamp: number;
+  verification_timestamp: number;
+  valid: boolean;
+}
+
+interface VerificationParams {
+  id?: number;
+  proofTimestamp?: number;
+  fileHash?: string;
+}
+
 // Function to insert a new verification
-function insertVerification(proofTimestamp, valid, fileHash) {
+export function insertVerification(
+  proofTimestamp: number,
+  valid: boolean,
+  fileHash: string
+): Promise<[number, number]> {
   return new Promise((resolve, reject) => {
-    const verificationTimestamp = Date.now();
-    const stmt = db.prepare(
+    const verificationTimestamp: number = Date.now();
+    const stmt: sqlite3.Statement = db.prepare(
       `INSERT INTO verifications (proof_timestamp, verification_timestamp, valid, file_hash) 
        VALUES (?, ?, ?, ?)
        ON CONFLICT(file_hash, proof_timestamp) DO UPDATE SET
@@ -41,9 +59,13 @@ function insertVerification(proofTimestamp, valid, fileHash) {
        RETURNING id`
     );
     
-    stmt.get([proofTimestamp, verificationTimestamp, valid ? 1 : 0, fileHash], function(err, row) {
+    stmt.get([proofTimestamp, verificationTimestamp, valid ? 1 : 0, fileHash], function(err: Error | null, row: { id: number } | undefined) {
       if (err) {
         reject(err);
+        return;
+      }
+      if (!row) {
+        reject(new Error('No row returned from insert'));
         return;
       }
       resolve([row.id, verificationTimestamp]);
@@ -54,10 +76,10 @@ function insertVerification(proofTimestamp, valid, fileHash) {
 }
 
 // Function to find verification by different parameters
-function findVerification(params) {
+export function findVerification(params: VerificationParams): Promise<Verification | undefined> {
   return new Promise((resolve, reject) => {
-    let query = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid FROM verifications WHERE ';
-    let values = [];
+    let query: string = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid FROM verifications WHERE ';
+    let values: (number | string)[] = [];
 
     if (params.id) {
       query += 'id = ?';
@@ -73,7 +95,7 @@ function findVerification(params) {
       return;
     }
 
-    db.get(query, values, (err, row) => {
+    db.get(query, values, (err: Error | null, row: Verification | undefined) => {
       if (err) {
         reject(err);
         return;
@@ -87,8 +109,4 @@ function findVerification(params) {
   });
 }
 
-module.exports = {
-  db,
-  insertVerification,
-  findVerification
-}; 
+export { db }; 
