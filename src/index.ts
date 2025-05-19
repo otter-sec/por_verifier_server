@@ -1,10 +1,12 @@
 import express, { Request, Response, RequestHandler } from "express";
 import fs from "fs";
 import path from "path";
-import { authMiddleware } from "./auth";
+import { authMiddleware } from "./middlewares/auth";
 import { insertVerification, findVerification } from "./database";
 import { downloadAndUnzip, verifyProof } from "./verifier";
 import { TEMP_DIR } from "./constants";
+import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
+import { VerificationResponse, VerificationQuery } from "./types/verification";
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -39,20 +41,6 @@ function releaseLock(): void {
     } else {
         isVerifying = false;
     }
-}
-
-interface VerificationResponse {
-    id: number;
-    valid: boolean;
-    fileHash: string;
-    proofTimestamp: number;
-    verificationTimestamp: number;
-}
-
-interface VerificationQuery {
-    id?: string;
-    proofTimestamp?: string;
-    fileHash?: string;
 }
 
 //////////////////
@@ -101,6 +89,9 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             fs.rmSync(extractPath, { recursive: true });
             fs.rmSync(path.join(TEMP_DIR, "download.zip"));
 
+            // Invalidate the cache if the verification was updated/created
+            invalidateCacheEntries(id, proofTimestamp, fileHash);
+
             const response: VerificationResponse = {
                 id,
                 valid,
@@ -109,6 +100,7 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
                 verificationTimestamp,
             };
             res.json(response);
+
         } finally {
             // Always release the lock, even if an error occurred
             releaseLock();
@@ -119,8 +111,8 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
     }
 }) as RequestHandler);
 
-// No authentication needed for getting a verification
-app.get("/verification", (async (req: Request<{}, {}, {}, VerificationQuery>, res: Response) => {
+// No authentication needed for getting a verification but we add LRU cache middleware
+app.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, VerificationQuery>, res: Response) => {
     try {
         const { id, proofTimestamp, fileHash } = req.query;
 
