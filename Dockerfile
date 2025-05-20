@@ -8,9 +8,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # clone and compile plonky2_por
-# RUN git clone https://github.com/otter-sec/por_v2.git
-# temporary copy of por_v2
-COPY por_v2 /opt/por_v2
+RUN cd /opt && git clone https://github.com/otter-sec/por_v2.git
 RUN cd /opt/por_v2 && cargo build --locked --release && mv target/release/plonky2_por /usr/local/bin/
 
 # add node user
