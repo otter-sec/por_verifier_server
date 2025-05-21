@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+    - '**'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      IMAGE_NAME: ${{ vars.REPOSITORY_URL }}/por-verifier
+      IMAGE_TAG: ${{ github.ref_name }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v6
+      with:
+        push: false # GCP credentials are short-lived (5 minutes), so we can't init creds first, have possibly >5 min build, and then push using those creds
+        load: true
+        tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }},${{ env.IMAGE_NAME }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - id: auth
+      name: Authenticate with GCP
+      uses: google-github-actions/auth@v2
+      with:
+        project_id: '${{ vars.PROJECT_ID }}'
+        workload_identity_provider: '${{ vars.WORKLOAD_IDENTITY_PROVIDER }}'
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev
+
+    - name: Push image
+      run: |
+        docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        docker push ${{ env.IMAGE_NAME }}:latest
+
+    - name: Deploy image
+      run: |
+        gcloud compute instances update-container --container-image=${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} github-syncer --zone=${{ vars.ZONE }}
