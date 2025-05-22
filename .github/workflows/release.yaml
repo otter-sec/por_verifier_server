@@ -53,4 +53,4 @@ jobs:
 
     - name: Deploy image
       run: |
-        gcloud compute instances update-container --container-image=${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} github-syncer --zone=${{ vars.ZONE }}
+        gcloud compute instances update-container --container-image=${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} por-verifier --zone=${{ vars.ZONE }}
