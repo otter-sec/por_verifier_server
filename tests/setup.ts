@@ -5,7 +5,7 @@ import path from 'path';
 jest.setTimeout(10000);
 
 // Clean up temp files after each test
-const TEMP_DIR = path.join('/tmp', 'por');
+const TEMP_DIR = path.join('/var/tmp', 'por');
 
 afterEach(() => {
   if (fs.existsSync(TEMP_DIR)) {

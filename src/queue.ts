@@ -1,0 +1,83 @@
+import { EventEmitter } from 'events';
+import { verifyProof } from './verifier';
+import { upsertVerification } from './database';
+import { invalidateCacheEntries } from './middlewares/cache';
+import fs from 'fs';
+import path from 'path';
+
+export interface VerificationJob {
+    id: number;
+    extractPath: string;
+    zipPath: string;
+    fileHash: string;
+    proofTimestamp: number;
+}
+
+class VerificationQueue extends EventEmitter {
+    private queue: VerificationJob[] = [];
+    private isProcessing: boolean = false;
+    private concurrency: number = 2; // Number of jobs to process concurrently
+    private activeJobs: number = 0;
+
+    constructor() {
+        super();
+        // Start processing jobs when they are added
+        this.on('jobAdded', () => this.processNextJob());
+    }
+
+    async addJob(job: VerificationJob): Promise<void> {
+        this.queue.push(job);
+        this.emit('jobAdded');
+    }
+
+    private async processNextJob(): Promise<void> {
+        if (this.isProcessing || this.activeJobs >= this.concurrency || this.queue.length === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+        const job = this.queue.shift()!;
+        this.activeJobs++;
+
+        try {
+            // Process the verification
+            const { valid } = await verifyProof(job.extractPath);
+            
+            // Update the database with the verification result
+            const verificationTimestamp = Date.now();
+            await upsertVerification(job.proofTimestamp, valid, job.fileHash, verificationTimestamp);
+            
+            // Invalidate cache entries
+            invalidateCacheEntries(job.id, job.proofTimestamp, job.fileHash);
+
+            // Clean up files
+            try {
+                fs.rmSync(job.extractPath, { recursive: true });
+                fs.rmSync(job.zipPath);
+            } catch (error) {
+                console.error('Error cleaning up files:', error);
+            }
+
+        } catch (error) {
+            console.error('Error processing verification job:', error);
+            // Update database to mark verification as failed
+            await upsertVerification(job.proofTimestamp, false, job.fileHash, Date.now());
+        } finally {
+            this.activeJobs--;
+            this.isProcessing = false;
+            // Process next job if there are any
+            this.processNextJob();
+        }
+    }
+
+    getQueueLength(): number {
+        return this.queue.length;
+    }
+
+    getActiveJobs(): number {
+        return this.activeJobs;
+    }
+}
+
+// Export a singleton instance
+export const verificationQueue = new VerificationQueue(); 

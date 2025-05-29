@@ -48,12 +48,14 @@ Response:
 ```json
 {
   "id": 1,
-  "valid": true,
+  "valid": null,
   "fileHash": "<sha256 hash of zip file>",
   "proofTimestamp": "<timestamp from final proof file>",
-  "verificationTimestamp": "<timestamp of verification (now)>"
+  "verificationTimestamp": null
 }
 ```
+
+Note that the `valid` and `verificationTimestamp` are null because it will be validated by a background service.
 
 It saves the verification in an SQLite database that can be queried in `/verification` endpoint. 
 

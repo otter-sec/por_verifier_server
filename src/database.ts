@@ -42,8 +42,8 @@ interface VerificationParams {
   fileHash?: string;
 }
 
-// Function to insert a new verification
-export function insertVerification(
+// Function to upsert a verification
+export function upsertVerification(
   proofTimestamp: number,
   valid: boolean | null,
   fileHash: string,
@@ -59,7 +59,7 @@ export function insertVerification(
        RETURNING id`
     );
     
-    stmt.get([proofTimestamp, verificationTimestamp, valid ? 1 : 0, fileHash], function(err: Error | null, row: { id: number } | undefined) {
+    stmt.get([proofTimestamp, verificationTimestamp, valid, fileHash], function(err: Error | null, row: { id: number } | undefined) {
       if (err) {
         reject(err);
         return;

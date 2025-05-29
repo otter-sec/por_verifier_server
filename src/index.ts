@@ -2,10 +2,11 @@ import express, { Request, Response, RequestHandler } from "express";
 import fs from "fs";
 import path from "path";
 import { authMiddleware } from "./middlewares/auth";
-import { insertVerification, findVerification } from "./database";
-import { downloadAndUnzip, verifyProof } from "./verifier";
-import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
+import { findVerification, upsertVerification } from "./database";
+import { downloadAndUnzip } from "./verifier";
+import { cacheMiddleware } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
+import { verificationQueue as queue } from "./queue";
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -60,13 +61,14 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             // Download and unzip the file
             const { extractPath, fileHash, zipPath } = await downloadAndUnzip(url);
 
-            // Verify the files
-            const { valid, proofTimestamp } = await verifyProof(extractPath);
+            // Read the proof timestamp from final_proof.json
+            const finalProofPath = path.join(extractPath, "final_proof.json");
+            const finalProofContent = JSON.parse(
+                fs.readFileSync(finalProofPath, "utf-8")
+            );
+            const proofTimestamp = finalProofContent.timestamp;
 
-            // Check if it exists by file hash and proof timestamp and validate if update is valid
-            // if the verification already exists, we can update the verification (only valid and verification_timestamp fields)
-            // however, for update to be valid, the file hash and proof timestamp should match the existing verification OR the existing verification is invalid
-            // it is not possible to update the file hash or proof timestamp of a valid verification
+            // Check if it exists by file hash and proof timestamp
             const existingVerificationFileHash = await findVerification({
                 fileHash,
             });
@@ -81,34 +83,45 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
                 throw new Error("File hash mismatch with existing valid verification");
             }
             
-            // Store the result in the database
-            const verificationTimestamp = Date.now();
-            const id = await insertVerification(proofTimestamp, valid, fileHash, verificationTimestamp);
+            // Store initial entry in the database with null values for valid and verificationTimestamp
+            let id: number;
+            if (!existingVerificationFileHash || !existingVerificationProofTimestamp) {
+                id = await upsertVerification(proofTimestamp, null, fileHash, null);
+            } else {
+                id = existingVerificationFileHash?.id ?? existingVerificationProofTimestamp?.id;
+            }
 
-            // Clean up
-            fs.rmSync(extractPath, { recursive: true });
-            fs.rmSync(path.join(zipPath));
+            // Add job to queue for background processing
+            queue.addJob({
+                id,
+                extractPath,
+                zipPath,
+                fileHash,
+                proofTimestamp
+            }).catch((error: Error) => {
+                console.error('Error adding job to queue:', error);
+            });
 
-            // Invalidate the cache if the verification was updated/created
-            invalidateCacheEntries(id, proofTimestamp, fileHash);
-
+            // Return the initial entry
             const response: VerificationResponse = {
                 id,
-                valid,
+                valid: null,
                 fileHash,
                 proofTimestamp,
-                verificationTimestamp,
+                verificationTimestamp: null
             };
             res.json(response);
 
         } catch(error) {
             console.error("Error:", error);
+            res.status(500).json({ error: "Internal server error" });
         } finally {
             // Always release the lock, even if an error occurred
             releaseLock();
         }
     } catch (error) {
         console.error("Error:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 }) as RequestHandler);
 
@@ -134,9 +147,9 @@ app.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, Verif
         }
 
         const response: VerificationResponse = {
-            valid: Boolean(result.valid),
+            valid: result.valid === null ? null : Boolean(result.valid),
             fileHash: result.file_hash,
-            verificationTimestamp: parseInt(result.verification_timestamp.toString()),
+            verificationTimestamp: result.verification_timestamp === null ? null : parseInt(result.verification_timestamp.toString()),
             proofTimestamp: parseInt(result.proof_timestamp.toString()),
             id: result.id,
         };
