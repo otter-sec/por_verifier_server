@@ -1,14 +1,14 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { DB_DIR } from './constants';
 
 // Ensure database directory exists
-const dbDir: string = path.join(__dirname, '../data');
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
-const dbPath: string = path.join(dbDir, 'verifications.db');
+const dbPath: string = path.join(DB_DIR, 'verifications.db');
 const db: sqlite3.Database = new (sqlite3.verbose().Database)(dbPath, (err: Error | null) => {
   if (err) {
     console.error('Error opening database:', err);

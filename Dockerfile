@@ -23,7 +23,7 @@ RUN npm install
 RUN npm run build
 
 # create database directory and set permissions
-RUN mkdir -p /app/data && chown -R node:node /app/data
+RUN mkdir -p /db && chown -R node:node /db
 
 # expose server port
 EXPOSE 3000
