@@ -1,3 +1,4 @@
 import path from 'path';
 
-export const TEMP_DIR: string = path.join("/tmp", "por"); 
+// We use /var/tmp instead of /tmp because /tmp is a RAM disk and we don't want to consume too much RAM
+export const TEMP_DIR: string = path.join("/var/tmp", "por"); 

@@ -1,9 +1,9 @@
 export interface VerificationResponse {
     id: number;
-    valid: boolean;
+    valid: boolean | null;
     fileHash: string;
     proofTimestamp: number;
-    verificationTimestamp: number;
+    verificationTimestamp: number | null;
 }
 
 export interface VerificationQuery {

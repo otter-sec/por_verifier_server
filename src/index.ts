@@ -4,7 +4,6 @@ import path from "path";
 import { authMiddleware } from "./middlewares/auth";
 import { insertVerification, findVerification } from "./database";
 import { downloadAndUnzip, verifyProof } from "./verifier";
-import { TEMP_DIR } from "./constants";
 import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 
@@ -59,7 +58,7 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
 
         try {
             // Download and unzip the file
-            const { extractPath, fileHash } = await downloadAndUnzip(url);
+            const { extractPath, fileHash, zipPath } = await downloadAndUnzip(url);
 
             // Verify the files
             const { valid, proofTimestamp } = await verifyProof(extractPath);
@@ -83,11 +82,12 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             }
             
             // Store the result in the database
-            const [id, verificationTimestamp] = await insertVerification(proofTimestamp, valid, fileHash);
+            const verificationTimestamp = Date.now();
+            const id = await insertVerification(proofTimestamp, valid, fileHash, verificationTimestamp);
 
             // Clean up
             fs.rmSync(extractPath, { recursive: true });
-            fs.rmSync(path.join(TEMP_DIR, "download.zip"));
+            fs.rmSync(path.join(zipPath));
 
             // Invalidate the cache if the verification was updated/created
             invalidateCacheEntries(id, proofTimestamp, fileHash);
@@ -101,13 +101,14 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             };
             res.json(response);
 
+        } catch(error) {
+            console.error("Error:", error);
         } finally {
             // Always release the lock, even if an error occurred
             releaseLock();
         }
     } catch (error) {
         console.error("Error:", error);
-        res.status(500).json({ error: "Internal server error" });
     }
 }) as RequestHandler);
 

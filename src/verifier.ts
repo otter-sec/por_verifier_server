@@ -13,6 +13,7 @@ const execAsync = promisify(exec);
 interface DownloadResult {
     extractPath: string;
     fileHash: string;
+    zipPath: string;
 }
 
 interface VerificationResult {
@@ -43,8 +44,14 @@ export async function downloadAndUnzip(url: string): Promise<DownloadResult> {
         responseType: "arraybuffer",
         timeout: 120 * 1000, // 2 minutes --> the files are usually big and can take a while to download
         maxRedirects: 0,
-        lookup: customLookup
+        lookup: customLookup,
+        maxBodyLength: 150 * 1024 * 1024, // 150MB
+        maxContentLength: 150 * 1024 * 1024, // 150MB
     };
+
+    // Ideally we should check uncompressed size to prevent DoS attacks
+    // but we assume the client (which is a CEX) won't send a malicious file
+    // since it would DoS their own features
 
     const response = await axios(config);
     fileBuffer = Buffer.from(response.data);
@@ -53,9 +60,11 @@ export async function downloadAndUnzip(url: string): Promise<DownloadResult> {
     if (!fs.existsSync(TEMP_DIR)) {
         fs.mkdirSync(TEMP_DIR, { recursive: true });
     }
+    
+    const timestamp = Date.now();
 
-    const zipPath = path.join(TEMP_DIR, "download.zip");
-    const extractPath = path.join(TEMP_DIR, "extracted");
+    const zipPath = path.join(TEMP_DIR, `download-${timestamp}.zip`);
+    const extractPath = path.join(TEMP_DIR, `extracted-${timestamp}`);
     
     if (fs.existsSync(extractPath)) {
         fs.rmSync(extractPath, { recursive: true });
@@ -76,7 +85,7 @@ export async function downloadAndUnzip(url: string): Promise<DownloadResult> {
         .pipe(unzipper.Extract({ path: extractPath }))
         .promise();
 
-    return { extractPath, fileHash };
+    return { extractPath, fileHash, zipPath };
 }
 
 export async function verifyProof(extractPath: string): Promise<VerificationResult> {

@@ -21,8 +21,8 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS verifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     proof_timestamp INTEGER NOT NULL,
-    verification_timestamp INTEGER NOT NULL,
-    valid BOOLEAN NOT NULL,
+    verification_timestamp INTEGER,
+    valid BOOLEAN,
     file_hash TEXT NOT NULL,
     UNIQUE(file_hash, proof_timestamp)
   )`);
@@ -45,11 +45,11 @@ interface VerificationParams {
 // Function to insert a new verification
 export function insertVerification(
   proofTimestamp: number,
-  valid: boolean,
-  fileHash: string
-): Promise<[number, number]> {
+  valid: boolean | null,
+  fileHash: string,
+  verificationTimestamp: number | null
+): Promise<number> {
   return new Promise((resolve, reject) => {
-    const verificationTimestamp: number = Date.now();
     const stmt: sqlite3.Statement = db.prepare(
       `INSERT INTO verifications (proof_timestamp, verification_timestamp, valid, file_hash) 
        VALUES (?, ?, ?, ?)
@@ -68,7 +68,7 @@ export function insertVerification(
         reject(new Error('No row returned from insert'));
         return;
       }
-      resolve([row.id, verificationTimestamp]);
+      resolve(row.id);
     });
     
     stmt.finalize();
