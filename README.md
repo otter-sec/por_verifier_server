@@ -55,9 +55,9 @@ Response:
 }
 ```
 
-Note that the `valid` and `verificationTimestamp` are null because it will be validated by a background service.
+Note that the `valid` and `verificationTimestamp` are null because it will be validated by a async background service.
 
-It saves the verification in an SQLite database that can be queried in `/verification` endpoint. 
+After the async verification, it is saved in an SQLite database that can be queried by the `/verification` endpoint.
 
 If you want to verify the proof again for some reason, you can resend the same request and the server will update the `valid` and the `verificationTimestamp` fields in the database. Note that the re-verification will fail if you send a proof file that contains the same proofTimestamp as an existing valid verification but with a different `fileHash` or vice-versa.
 
