@@ -32,8 +32,8 @@ interface Verification {
   id: number;
   file_hash: string;
   proof_timestamp: number;
-  verification_timestamp: number;
-  valid: boolean;
+  verification_timestamp: number | null;
+  valid: boolean | null;
 }
 
 interface VerificationParams {
@@ -99,10 +99,6 @@ export function findVerification(params: VerificationParams): Promise<Verificati
       if (err) {
         reject(err);
         return;
-      }
-      if (row) {
-        // Convert SQLite integer boolean back to JS boolean
-        row.valid = Boolean(row.valid);
       }
       resolve(row);
     });
