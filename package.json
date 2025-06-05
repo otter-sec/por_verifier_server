@@ -10,10 +10,15 @@
     "test": "jest --silent"
   },
   "dependencies": {
+    "@types/ejs": "3.1.5",
+    "@types/express-ejs-layouts": "2.5.4",
     "axios": "1.9.0",
+    "bignumber.js": "9.3.0",
     "crypto": "1.0.1",
     "dotenv": "16.5.0",
+    "ejs": "3.1.10",
     "express": "4.21.2",
+    "express-ejs-layouts": "2.5.1",
     "ipaddr.js": "2.2.0",
     "lru-cache": "11.1.0",
     "sqlite3": "5.1.7",

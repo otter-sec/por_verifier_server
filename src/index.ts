@@ -2,11 +2,13 @@ import express, { Request, Response, RequestHandler } from "express";
 import fs from "fs";
 import path from "path";
 import { authMiddleware } from "./middlewares/auth";
-import { findVerification, upsertVerification } from "./database";
+import { adminAuthMiddleware } from "./middlewares/adminAuth";
+import { findVerification, upsertVerification, getAllVerifications, deleteVerification } from "./database";
 import { downloadAndUnzip } from "./verifier";
-import { cacheMiddleware } from "./middlewares/cache";
+import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
+import { parseFinalProof } from "./utils";
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -46,8 +48,11 @@ function releaseLock(): void {
 //////////////////
 /*====ROUTES====*/
 
+// Create API router
+const apiRouter = express.Router();
+
 // Authentication is needed for verifying a proof
-app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
+apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
     try {
         const { url } = req.body as { url?: string };
         if (!url) {
@@ -61,12 +66,16 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             // Download and unzip the file
             const { extractPath, fileHash, zipPath } = await downloadAndUnzip(url);
 
-            // Read the proof timestamp from final_proof.json
+            // Read and parse the final proof
             const finalProofPath = path.join(extractPath, "final_proof.json");
             const finalProofContent = JSON.parse(
                 fs.readFileSync(finalProofPath, "utf-8")
             );
-            const proofTimestamp = finalProofContent.timestamp;
+            
+            const { proofTimestamp, assets } = parseFinalProof(finalProofContent);
+
+            // Store the assets data as JSON string
+            const assetsStr = JSON.stringify(assets);
 
             // Check if it exists by file hash and proof timestamp
             const existingVerificationFileHash = await findVerification({
@@ -85,10 +94,14 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
             
             // Store initial entry in the database with null values for valid and verificationTimestamp
             let id: number;
+            let existingAssets: string | null = null;
+
             if (!existingVerificationFileHash || !existingVerificationProofTimestamp) {
-                id = await upsertVerification(proofTimestamp, null, fileHash, null);
+                id = await upsertVerification(proofTimestamp, null, fileHash, null, assetsStr);
             } else {
-                id = existingVerificationFileHash?.id ?? existingVerificationProofTimestamp?.id;
+                const existingVerification = existingVerificationFileHash || existingVerificationProofTimestamp;
+                id = existingVerification.id;
+                existingAssets = existingVerification.assets;
             }
 
             // Add job to queue for background processing
@@ -108,7 +121,8 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
                 valid: null,
                 fileHash,
                 proofTimestamp,
-                verificationTimestamp: null
+                verificationTimestamp: null,
+                assets: existingAssets ? JSON.parse(existingAssets) : assets
             };
             res.json(response);
 
@@ -126,7 +140,7 @@ app.post("/verify", authMiddleware, (async (req: Request, res: Response) => {
 }) as RequestHandler);
 
 // No authentication needed for getting a verification but we add LRU cache middleware
-app.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, VerificationQuery>, res: Response) => {
+apiRouter.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, VerificationQuery>, res: Response) => {
     try {
         const { id, proofTimestamp, fileHash } = req.query;
 
@@ -146,7 +160,7 @@ app.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, Verif
             return res.status(404).json({ error: "Verification not found" });
         }
 
-        const response: VerificationResponse = {
+        const response: VerificationResponse & { balances?: any, assets?: any } = {
             valid: result.valid === null ? null : Boolean(result.valid),
             fileHash: result.file_hash,
             verificationTimestamp: result.verification_timestamp === null ? null : parseInt(result.verification_timestamp.toString()),
@@ -154,12 +168,75 @@ app.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {}, Verif
             id: result.id,
         };
 
+        // Parse and include balances and assets if they exist
+        if (result.balances) {
+            response.balances = JSON.parse(result.balances);
+        }
+        if (result.assets) {
+            response.assets = JSON.parse(result.assets);
+        }
+
         res.json(response);
     } catch (error) {
         console.error("Error:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 }) as RequestHandler);
+
+// Get all verifications with pagination
+apiRouter.get("/verifications", (async (req: Request, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const pageSize = parseInt(req.query.pageSize as string) || 10;
+
+        const result = await getAllVerifications(page, pageSize);
+        res.json(result);
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}) as RequestHandler);
+
+// Admin routes
+const adminRouter = express.Router();
+adminRouter.use(adminAuthMiddleware);
+
+// Delete a verification
+adminRouter.post("/verifications/:id/delete", (async (req: Request, res: Response) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: "Invalid verification ID" });
+            return;
+        }
+
+        const verification = await findVerification({ id });
+        if (!verification) {
+            res.status(404).json({ error: "Verification not found" });
+            return;
+        }
+
+        await deleteVerification(id);
+
+        // invalidate cache
+        invalidateCacheEntries(verification.id, verification.proof_timestamp, verification.file_hash);
+
+        res.status(200).json({ message: "Verification deleted successfully" });
+    } catch (error) {
+        console.error("Error:", error);
+        if (error instanceof Error && error.message === 'Verification not found') {
+            res.status(404).json({ error: "Verification not found" });
+        } else {
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
+}) as RequestHandler);
+
+// Mount API router under /api prefix
+app.use('/api', apiRouter);
+
+// Mount admin routes
+app.use("/api/admin", adminRouter);
 
 //////////////////
 
