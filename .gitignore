@@ -10,3 +10,5 @@ data/
 
 # configuration files
 .vscode/
+
+.DS_Store
