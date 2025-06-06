@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'POR Verifier' %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'ottersec-dark': '#0D1117',
+                        'ottersec-gray': '#161B22',
+                        'ottersec-light-gray': '#21262D',
+                        'ottersec-accent': '#58A6FF',
+                        'ottersec-green': '#3FB950',
+                        'ottersec-red': '#F85149',
+                        'ottersec-yellow': '#D29922'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-ottersec-dark text-gray-100 min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav class="bg-ottersec-gray border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <!-- OtterSec Logo -->
+                    <a href="/" class="flex items-center space-x-2 text-xl font-bold text-white hover:text-gray-300 transition-colors">
+                        <img src="/img/osec.svg" alt="OtterSec" class="rounded h-10 w-auto">
+                        <span>PoR Verifier</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-white hover:text-gray-300 transition-colors px-3 py-2 rounded-md text-sm font-medium">
+                        Verifications
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Title Section -->
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 pt-6 w-full">
+        <div class="grid grid-cols-2 gap-4 items-center px-4 sm:px-6 lg:px-8">
+            <div class="justify-self-start">
+                <h1 class="text-3xl font-bold text-white"><%= pageTitle || 'PoR Verifier' %></h1>
+                <% if (pageDescription) { %>
+                    <p class="mt-2 text-gray-400"><%= pageDescription %></p>
+                <% } %>
+            </div>
+            <div class="justify-self-end">
+                <img src="/img/backpack.png" alt="Backpack" class="h-12 w-auto">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto py-2 sm:px-6 lg:px-8 w-full">
+        <%- body %>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-ottersec-gray border-t border-gray-700 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="text-center text-gray-400 text-sm">
+                <p>&copy; <%= new Date().getFullYear() %> PoR Verifier. Powered by <a href="https://osec.io" class="underline hover:text-blue-400 transition-colors">OtterSec</a>.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html> 

@@ -30,6 +30,7 @@ interface Verification {
   valid: boolean | null;
   balances: string | null;
   assets: string | null;
+  proof_file_url: string | null;
 }
 
 interface VerificationParams {
@@ -52,39 +53,74 @@ export function upsertVerification(
   valid: boolean | null,
   fileHash: string,
   verificationTimestamp: number | null,
-  assets: string | null = null
+  assets: string | null = null,
+  proofFileUrl: string | null = null
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const stmt: sqlite3.Statement = db.prepare(
-      `INSERT INTO verifications (
-        proof_timestamp, verification_timestamp, valid, file_hash, assets
-      ) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(file_hash, proof_timestamp) DO UPDATE SET
-      verification_timestamp = excluded.verification_timestamp,
-      valid = excluded.valid
-      RETURNING id`
+    // First, check if a verification with the same file_hash and proof_timestamp exists
+    const selectStmt = db.prepare(
+      'SELECT id, proof_file_url FROM verifications WHERE file_hash = ? AND proof_timestamp = ?'
     );
     
-    stmt.get([proofTimestamp, verificationTimestamp, valid, fileHash, assets], function(err: Error | null, row: { id: number } | undefined) {
+    selectStmt.get([fileHash, proofTimestamp], (err: Error | null, existingRow: { id: number; proof_file_url: string | null } | undefined) => {
       if (err) {
+        selectStmt.finalize();
         reject(err);
         return;
       }
-      if (!row) {
-        reject(new Error('No row returned from insert'));
-        return;
+      
+      if (existingRow) {
+        // Record exists, perform UPDATE
+        const finalProofFileUrl = proofFileUrl !== null ? proofFileUrl : existingRow.proof_file_url;
+        
+        const updateStmt = db.prepare(
+          `UPDATE verifications SET 
+           verification_timestamp = ?, 
+           valid = ?, 
+           proof_file_url = ? 
+           WHERE id = ?`
+        );
+        
+        updateStmt.run([verificationTimestamp, valid, finalProofFileUrl, existingRow.id], function(err: Error | null) {
+          updateStmt.finalize();
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve(existingRow.id);
+        });
+      } else {
+        // Record doesn't exist, perform INSERT
+        const insertStmt = db.prepare(
+          `INSERT INTO verifications (
+            proof_timestamp, verification_timestamp, valid, file_hash, assets, proof_file_url
+          ) VALUES (?, ?, ?, ?, ?, ?)
+          RETURNING id`
+        );
+        
+        insertStmt.get([proofTimestamp, verificationTimestamp, valid, fileHash, assets, proofFileUrl], function(err: Error | null, row: { id: number } | undefined) {
+          insertStmt.finalize();
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (!row) {
+            reject(new Error('No row returned from insert'));
+            return;
+          }
+          resolve(row.id);
+        });
       }
-      resolve(row.id);
+      
+      selectStmt.finalize();
     });
-    
-    stmt.finalize();
   });
 }
 
 // Function to find verification by different parameters
 export function findVerification(params: VerificationParams): Promise<Verification | undefined> {
   return new Promise((resolve, reject) => {
-    let query: string = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid, assets FROM verifications WHERE ';
+    let query: string = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid, assets, proof_file_url FROM verifications WHERE ';
     let values: (number | string)[] = [];
 
     if (params.id) {
@@ -134,7 +170,7 @@ export function getAllVerifications(page: number = 1, pageSize: number = 10): Pr
           file_hash as fileHash,
           valid
         FROM verifications 
-        ORDER BY verification_timestamp DESC 
+        ORDER BY proof_timestamp DESC 
         LIMIT ? OFFSET ?`,
         [pageSize, offset],
         (err: Error | null, rows: VerificationListResponse[]) => {
@@ -142,6 +178,11 @@ export function getAllVerifications(page: number = 1, pageSize: number = 10): Pr
             reject(err);
             return;
           }
+
+          rows.forEach((row) => {
+            row.valid = row.valid === null ? null : Boolean(row.valid);
+          });
+
           resolve({ verifications: rows, total });
         }
       );

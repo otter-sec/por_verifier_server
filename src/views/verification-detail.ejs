@@ -1,0 +1,219 @@
+<div class="px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <nav class="flex" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-4">
+                <li>
+                    <a href="/" class="text-gray-400 hover:text-gray-300 transition-colors">
+                        Verifications
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="flex-shrink-0 h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="ml-4 text-gray-300">Verification #<%= verification.id %></span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        
+        <div class="mt-4 flex items-center space-x-4">
+            <% if (verification.valid === null) { %>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-ottersec-yellow bg-opacity-20 text-ottersec-yellow">
+                    ⏳ Pending Verification
+                </span>
+            <% } else if (verification.valid) { %>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-ottersec-green bg-opacity-20 text-ottersec-green">
+                        ✓ Valid Proof
+                    </span>
+                <% } else { %>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-ottersec-red bg-opacity-20 text-ottersec-red">
+                        ✗ Invalid Proof
+                    </span>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verification Info -->
+    <div class="bg-ottersec-gray rounded-lg p-6 mb-8 border border-gray-700">
+        <h2 class="text-xl font-semibold text-white mb-4">Verification Information</h2>
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-3">
+            <div>
+                <dt class="text-sm font-medium text-gray-400">Status</dt>
+                <dd class="mt-1">
+                    <% if (verification.valid === null) { %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-ottersec-yellow bg-opacity-20 text-ottersec-yellow">
+                            ⏳ Pending Verification
+                        </span>
+                    <% } else if (verification.valid) { %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-ottersec-green bg-opacity-20 text-ottersec-green">
+                            ✓ Valid Proof
+                        </span>
+                    <% } else { %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-ottersec-red bg-opacity-20 text-ottersec-red">
+                            ✗ Invalid Proof
+                        </span>
+                    <% } %>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-400">Proof Timestamp</dt>
+                <dd class="mt-1 text-sm text-white">
+                    <%= new Date(verification.proof_timestamp).toLocaleString('en-US', { timeZoneName: 'short' }) %>
+                    <div class="text-xs text-gray-400 mt-1">(<%= verification.proof_timestamp %>)</div>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-400">Verification Timestamp</dt>
+                <dd class="mt-1 text-sm text-white">
+                    <% if (verification.verification_timestamp) { %>
+                        <%= new Date(verification.verification_timestamp).toLocaleString('en-US', { timeZoneName: 'short' }) %>
+                        <div class="text-xs text-gray-400 mt-1">(<%= verification.verification_timestamp %>)</div>
+                    <% } else { %>
+                        <span class="text-gray-500">Not yet verified</span>
+                    <% } %>
+                </dd>
+            </div>
+            <% if (verification.proof_file_url) { %>
+            <div class="sm:col-span-3">
+                <dt class="text-sm font-medium text-gray-400">Proof File URL</dt>
+                <dd class="mt-1 text-sm text-white break-all">
+                    <a href="<%= verification.proof_file_url %>" target="_blank" class="text-ottersec-accent hover:text-ottersec-accent-light transition-colors">
+                        <%= verification.proof_file_url %>
+                    </a>
+                </dd>
+            </div>
+            <% } %>
+            <div class="sm:col-span-3">
+                <dt class="text-sm font-medium text-gray-400">File Hash (SHA256)</dt>
+                <dd class="mt-1 text-sm text-white font-mono break-all">
+                    <%= verification.file_hash %>
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Proof of Liabilities Table -->
+    <% if (assets && typeof assets === 'object' && Object.keys(assets).length > 0) { %>
+        <div class="bg-ottersec-gray rounded-lg border border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-700">
+                <h2 class="text-xl font-semibold text-white">Proof of Liabilities</h2>
+                <p class="mt-1 text-sm text-gray-400">Detailed breakdown of all the exchange's liabilities verified by the Zero-Knowledge proof</p>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-600">
+                    <thead class="bg-ottersec-light-gray">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                Asset Name
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                Asset Balance
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                Asset Price (USD)
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                USD Balance
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-ottersec-gray divide-y divide-gray-600">
+                        <% 
+                        let totalUsdValue = 0;
+                        const assetKeys = Object.keys(assets);
+                        
+                        // Sort assets by USD balance (descending)
+                        const sortedAssetKeys = assetKeys.sort((a, b) => {
+                            const usdBalanceA = parseFloat(assets[a].usd_balance || 0);
+                            const usdBalanceB = parseFloat(assets[b].usd_balance || 0);
+                            return usdBalanceB - usdBalanceA;
+                        });
+                        
+                        sortedAssetKeys.forEach(function(assetName, index) { 
+                            const asset = assets[assetName];
+                            totalUsdValue += parseFloat(asset.usd_balance || 0);
+                        %>
+                            <tr class="<%= index % 2 === 0 ? 'bg-ottersec-gray' : 'bg-ottersec-light-gray' %> hover:bg-gray-700 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="text-sm font-medium text-white">
+                                            <%= assetName %>
+                                        </div>
+                                        <% if (asset.symbol && asset.symbol !== assetName) { %>
+                                            <div class="text-xs text-gray-400 ml-2">
+                                                (<%= asset.symbol %>)
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <div class="text-sm text-white font-mono">
+                                        <%= formatMoney(asset.balance) %>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <div class="text-sm text-gray-300 font-mono">
+                                        <% if (parseFloat(asset.price) > 0) { %>
+                                            $<%= formatMoney(asset.price) %>
+                                        <% } else { %>
+                                            <span class="text-gray-500">—</span>
+                                        <% } %>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <div class="text-sm font-medium text-ottersec-green font-mono">
+                                        <% if (parseFloat(asset.usd_balance) > 0) { %>
+                                            $<%= formatMoney(asset.usd_balance) %>
+                                        <% } else { %>
+                                            <span class="text-gray-500">—</span>
+                                        <% } %>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                    <tfoot class="bg-ottersec-light-gray">
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-right text-sm font-medium text-white">
+                                Total USD Value:
+                            </td>
+                            <td class="px-6 py-4 text-right text-lg font-bold text-ottersec-green font-mono">
+                                $<%= formatMoney(totalUsdValue.toFixed(2)) %>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="bg-ottersec-gray rounded-lg border border-gray-700 p-6">
+            <div class="text-center">
+                <h2 class="text-xl font-semibold text-white mb-2">Proof of Liabilities</h2>
+                <p class="text-gray-400 mb-2">
+                    <% if (verification.valid === null) { %>
+                        Asset data will be available once verification is complete.
+                    <% } else { %>
+                        No assets data found in this verification.
+                    <% } %>
+                </p>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Actions -->
+    <div class="mt-8 flex justify-between items-center">
+        <a href="/" 
+           class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-ottersec-gray hover:bg-ottersec-light-gray transition-colors">
+            ← Back to Verifications
+        </a>
+        
+        <div class="text-xs text-gray-500">
+            Last updated: <%= verification.verification_timestamp ? new Date(verification.verification_timestamp).toLocaleString('en-US', { timeZoneName: 'short' }) : 'Never' %>
+        </div>
+    </div>
+</div> 

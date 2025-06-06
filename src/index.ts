@@ -1,6 +1,7 @@
 import express, { Request, Response, RequestHandler } from "express";
 import fs from "fs";
 import path from "path";
+import expressLayouts from 'express-ejs-layouts';
 import { authMiddleware } from "./middlewares/auth";
 import { adminAuthMiddleware } from "./middlewares/adminAuth";
 import { findVerification, upsertVerification, getAllVerifications, deleteVerification } from "./database";
@@ -8,7 +9,7 @@ import { downloadAndUnzip } from "./verifier";
 import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
-import { parseFinalProof } from "./utils";
+import { parseFinalProof, formatMoney } from "./utils";
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -19,6 +20,16 @@ if (fs.existsSync('.env')) {
 }
 
 const app = express();
+
+// Set up EJS as the view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(expressLayouts);
+app.set('layout', 'layout');
+
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(express.json());
 
 // Mutex-like lock mechanism
@@ -47,6 +58,82 @@ function releaseLock(): void {
 
 //////////////////
 /*====ROUTES====*/
+
+// View routes (before API routes)
+app.get('/', async (req: Request, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const pageSize = parseInt(req.query.pageSize as string) || 20;
+        
+        // Ensure reasonable limits
+        const validPage = Math.max(1, page);
+        const validPageSize = Math.min(Math.max(1, pageSize), 100);
+        
+        const result = await getAllVerifications(validPage, validPageSize);
+        const totalPages = Math.ceil(result.total / validPageSize);
+        
+        res.render('verifications', { 
+            title: 'All proofs',
+            pageTitle: 'Proof of Reserve Verifications',
+            pageDescription: 'A list of all ZK global proofs verifications and their status.',
+            verifications: result.verifications,
+            total: result.total,
+            currentPage: validPage,
+            pageSize: validPageSize,
+            totalPages: totalPages,
+            hasNextPage: validPage < totalPages,
+            hasPrevPage: validPage > 1
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).render('error', { title: 'Error - POR Verifier', error: 'Internal server error' });
+    }
+});
+
+app.get('/verification/:identifier', async (req: Request, res: Response) => {
+    try {
+        const identifier = req.params.identifier;
+        let verificationQuery: any = {};
+
+        // Determine the type of identifier
+        if (/^\d+$/.test(identifier)) {
+            const numericValue = parseInt(identifier);
+            
+            verificationQuery.proofTimestamp = numericValue;
+        } else {
+            // If it contains non-digits, treat as fileHash
+            verificationQuery.fileHash = identifier;
+        }
+
+        let verification = await findVerification(verificationQuery);
+        
+        if (!verification) {
+            return res.status(404).render('error', { title: 'Error - POR Verifier', error: 'Verification not found' });
+        }
+
+        // Parse assets if they exist
+        let assets = null;
+        if (verification.assets) {
+            assets = JSON.parse(verification.assets);
+        }
+
+        res.render('verification-detail', { 
+            title: `Proof ${verification.proof_timestamp} - PoR Verifier`,
+            pageTitle: 'Verification Details',
+            verification: {
+                ...verification,
+                valid: verification.valid === null ? null : Boolean(verification.valid),
+                verification_timestamp: verification.verification_timestamp === null ? null : parseInt(verification.verification_timestamp.toString()),
+                proof_timestamp: parseInt(verification.proof_timestamp.toString()),
+            },
+            assets,
+            formatMoney
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).render('error', { title: 'Error - POR Verifier', error: 'Internal server error' });
+    }
+});
 
 // Create API router
 const apiRouter = express.Router();
@@ -97,7 +184,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
             let existingAssets: string | null = null;
 
             if (!existingVerificationFileHash || !existingVerificationProofTimestamp) {
-                id = await upsertVerification(proofTimestamp, null, fileHash, null, assetsStr);
+                id = await upsertVerification(proofTimestamp, null, fileHash, null, assetsStr, url);
             } else {
                 const existingVerification = existingVerificationFileHash || existingVerificationProofTimestamp;
                 id = existingVerification.id;

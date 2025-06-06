@@ -98,3 +98,25 @@ export function parseFinalProof(finalProof: any) {
     assets,
   };
 }
+
+export function formatMoney(numberString: string): string {
+  // Handle empty or invalid input
+  if (!numberString || numberString === '0') {
+    return '0';
+  }
+
+  // Split by decimal point
+  const parts = numberString.toString().split('.');
+  const integerPart = parts[0];
+  const decimalPart = parts[1];
+
+  // Add thousands commas to integer part
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  // Concatenate with decimal part if it exists
+  if (decimalPart !== undefined) {
+    return `${formattedInteger}.${decimalPart}`;
+  }
+
+  return formattedInteger;
+}

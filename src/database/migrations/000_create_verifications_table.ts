@@ -4,8 +4,13 @@ export const migration = {
     id: '000_create_verifications_table',
     up: async (db: sqlite3.Database): Promise<void> => {
         return new Promise((resolve, reject) => {
+            // delete the table if it exists
+            db.run(`DROP TABLE IF EXISTS verifications`, (err) => {
+                if (err) reject(err);
+            });
+
             db.run(`
-                CREATE TABLE IF NOT EXISTS verifications (
+                CREATE TABLE verifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     proof_timestamp INTEGER NOT NULL,
                     verification_timestamp INTEGER,
