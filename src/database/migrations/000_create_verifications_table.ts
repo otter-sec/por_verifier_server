@@ -7,20 +7,21 @@ export const migration = {
             // delete the table if it exists
             db.run(`DROP TABLE IF EXISTS verifications`, (err) => {
                 if (err) reject(err);
-            });
-
-            db.run(`
-                CREATE TABLE verifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    proof_timestamp INTEGER NOT NULL,
-                    verification_timestamp INTEGER,
-                    valid BOOLEAN,
-                    file_hash TEXT NOT NULL,
-                    UNIQUE(file_hash, proof_timestamp)
-                )
-            `, (err) => {
-                if (err) reject(err);
-                else resolve();
+                else {
+                    db.run(`
+                        CREATE TABLE verifications (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            proof_timestamp INTEGER NOT NULL,
+                            verification_timestamp INTEGER,
+                            valid BOOLEAN,
+                            file_hash TEXT NOT NULL,
+                            UNIQUE(file_hash, proof_timestamp)
+                        )
+                    `, (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                }
             });
         });
     }
