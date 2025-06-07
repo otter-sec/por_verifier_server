@@ -31,6 +31,7 @@ interface Verification {
   balances: string | null;
   assets: string | null;
   proof_file_url: string | null;
+  prover_version: string | null;
 }
 
 interface VerificationParams {
@@ -54,15 +55,16 @@ export function upsertVerification(
   fileHash: string,
   verificationTimestamp: number | null,
   assets: string | null = null,
-  proofFileUrl: string | null = null
+  proofFileUrl: string | null = null,
+  proverVersion: string | null = null
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     // First, check if a verification with the same file_hash and proof_timestamp exists
     const selectStmt = db.prepare(
-      'SELECT id, proof_file_url FROM verifications WHERE file_hash = ? AND proof_timestamp = ?'
+      'SELECT id, proof_file_url, prover_version FROM verifications WHERE file_hash = ? AND proof_timestamp = ?'
     );
     
-    selectStmt.get([fileHash, proofTimestamp], (err: Error | null, existingRow: { id: number; proof_file_url: string | null } | undefined) => {
+    selectStmt.get([fileHash, proofTimestamp], (err: Error | null, existingRow: { id: number; proof_file_url: string | null; prover_version: string | null } | undefined) => {
       if (err) {
         selectStmt.finalize();
         reject(err);
@@ -72,16 +74,18 @@ export function upsertVerification(
       if (existingRow) {
         // Record exists, perform UPDATE
         const finalProofFileUrl = proofFileUrl !== null ? proofFileUrl : existingRow.proof_file_url;
+        const finalProverVersion = proverVersion !== null ? proverVersion : existingRow.prover_version;
         
         const updateStmt = db.prepare(
           `UPDATE verifications SET 
            verification_timestamp = ?, 
            valid = ?, 
-           proof_file_url = ? 
+           proof_file_url = ?,
+           prover_version = ?
            WHERE id = ?`
         );
         
-        updateStmt.run([verificationTimestamp, valid, finalProofFileUrl, existingRow.id], function(err: Error | null) {
+        updateStmt.run([verificationTimestamp, valid, finalProofFileUrl, finalProverVersion, existingRow.id], function(err: Error | null) {
           updateStmt.finalize();
           if (err) {
             reject(err);
@@ -93,12 +97,12 @@ export function upsertVerification(
         // Record doesn't exist, perform INSERT
         const insertStmt = db.prepare(
           `INSERT INTO verifications (
-            proof_timestamp, verification_timestamp, valid, file_hash, assets, proof_file_url
-          ) VALUES (?, ?, ?, ?, ?, ?)
+            proof_timestamp, verification_timestamp, valid, file_hash, assets, proof_file_url, prover_version
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
           RETURNING id`
         );
         
-        insertStmt.get([proofTimestamp, verificationTimestamp, valid, fileHash, assets, proofFileUrl], function(err: Error | null, row: { id: number } | undefined) {
+        insertStmt.get([proofTimestamp, verificationTimestamp, valid, fileHash, assets, proofFileUrl, proverVersion], function(err: Error | null, row: { id: number } | undefined) {
           insertStmt.finalize();
           if (err) {
             reject(err);
@@ -120,7 +124,7 @@ export function upsertVerification(
 // Function to find verification by different parameters
 export function findVerification(params: VerificationParams): Promise<Verification | undefined> {
   return new Promise((resolve, reject) => {
-    let query: string = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid, assets, proof_file_url FROM verifications WHERE ';
+    let query: string = 'SELECT id, file_hash, proof_timestamp, verification_timestamp, valid, assets, proof_file_url, prover_version FROM verifications WHERE ';
     let values: (number | string)[] = [];
 
     if (params.id) {
@@ -168,6 +172,7 @@ export function getAllVerifications(page: number = 1, pageSize: number = 10): Pr
           proof_timestamp as proofTimestamp,
           verification_timestamp as verificationTimestamp,
           file_hash as fileHash,
+          prover_version as proverVersion,
           valid
         FROM verifications 
         ORDER BY proof_timestamp DESC 

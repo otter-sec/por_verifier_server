@@ -3,6 +3,7 @@ import net from "node:net";
 import dns from "node:dns";
 import BigNumber from "bignumber.js";
 import { ZK_FIELD_ORDER } from "./constants";
+import { execSync } from "node:child_process";
 
 function isPrivateIp(ip: string): boolean {
   return ipaddr.parse(ip).range() !== "unicast";
@@ -56,6 +57,7 @@ export async function resolveAndValidateUrl(url: string): Promise<ResolvedUrl> {
 
 export function parseFinalProof(finalProof: any) {
   const proofTimestamp = finalProof.timestamp;
+  const proverVersion = finalProof.prover_version;
   const asset_names = finalProof.asset_names;
   const asset_decimals = finalProof.asset_decimals;
   const asset_count = asset_names.length;
@@ -95,23 +97,24 @@ export function parseFinalProof(finalProof: any) {
 
   return {
     proofTimestamp,
+    proverVersion,
     assets,
   };
 }
 
 export function formatMoney(numberString: string): string {
   // Handle empty or invalid input
-  if (!numberString || numberString === '0') {
-    return '0';
+  if (!numberString || numberString === "0") {
+    return "0";
   }
 
   // Split by decimal point
-  const parts = numberString.toString().split('.');
+  const parts = numberString.toString().split(".");
   const integerPart = parts[0];
   const decimalPart = parts[1];
 
   // Add thousands commas to integer part
-  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   // Concatenate with decimal part if it exists
   if (decimalPart !== undefined) {
@@ -119,4 +122,17 @@ export function formatMoney(numberString: string): string {
   }
 
   return formattedInteger;
+}
+
+export function getProverVersion(): string {
+  try {
+    let output = execSync("plonky2_por version").toString();
+
+    // parse with regex
+    const regex = /(v\d+\.\d+\.\d+)/;
+    const match = output.match(regex);
+    return match ? match[1] : "unknown";
+  } catch (error) {
+    return "unknown";
+  }
 }

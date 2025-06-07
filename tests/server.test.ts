@@ -17,7 +17,7 @@ interface VerificationResponse {
 async function waitForVerification(id: number, maxAttempts = 10, delay = 1000): Promise<VerificationResponse> {
     for (let i = 0; i < maxAttempts; i++) {
         const response = await request(app)
-            .get(`/verification?id=${id}`)
+            .get(`/api/verification?id=${id}`)
             .expect(200);
         
         const verification = response.body as VerificationResponse;
@@ -33,7 +33,7 @@ async function waitForVerification(id: number, maxAttempts = 10, delay = 1000): 
 async function waitForSecondVerification(id: number, verificationTimestamp: number, maxAttempts = 10, delay = 1000): Promise<VerificationResponse> {
     for (let i = 0; i < maxAttempts; i++) {
         const response = await request(app)
-            .get(`/verification?id=${id}&verificationTimestamp=${verificationTimestamp}`)
+            .get(`/api/verification?id=${id}&verificationTimestamp=${verificationTimestamp}`)
             .expect(200);
         const verification = response.body as VerificationResponse;
         if (verification.valid !== null && verification.verificationTimestamp !== null) {
@@ -124,7 +124,7 @@ describe('Verification Server', () => {
     describe('POST /verify', () => {
         it('should create initial verification entry and return pending status', async () => {
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({
                     url: mockServerUrl
@@ -143,7 +143,7 @@ describe('Verification Server', () => {
 
         it('should return 400 if URL is missing', async () => {
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({});
 
@@ -153,7 +153,7 @@ describe('Verification Server', () => {
 
         it('should return 500 if URL is invalid', async () => {
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({
                     url: 'invalid-url'
@@ -165,7 +165,7 @@ describe('Verification Server', () => {
 
         it('should return 500 if URL is not accessible', async () => {
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({
                     url: 'http://localhost:9999/nonexistent.zip'
@@ -179,7 +179,7 @@ describe('Verification Server', () => {
     describe('GET /verification', () => {
         it('should find verification by ID', async () => {
             const initialResponse = await request(app)
-                .get(`/verification?id=${global.testData.id}`);
+                .get(`/api/verification?id=${global.testData.id}`);
 
             expect(initialResponse.status).toBe(200);
             expect(initialResponse.body.valid)
@@ -191,7 +191,7 @@ describe('Verification Server', () => {
         it('should find verification by file hash and wait for completion', async () => {
             const verification = await waitForVerification(global.testData.id);
             const response = await request(app)
-                .get(`/verification?fileHash=${verification.fileHash}`);
+                .get(`/api/verification?fileHash=${verification.fileHash}`);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject(verification);
@@ -200,7 +200,7 @@ describe('Verification Server', () => {
         it('should find verification by proof timestamp and wait for completion', async () => {
             const verification = await waitForVerification(global.testData.id);
             const response = await request(app)
-                .get(`/verification?proofTimestamp=${verification.proofTimestamp}`);
+                .get(`/api/verification?proofTimestamp=${verification.proofTimestamp}`);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject(verification);
@@ -208,7 +208,7 @@ describe('Verification Server', () => {
 
         it('should return 404 for non-existent ID', async () => {
             const response = await request(app)
-                .get('/verification?id=999999');
+                .get('/api/verification?id=999999');
 
             expect(response.status).toBe(404);
             expect(response.body).toHaveProperty('error');
@@ -216,7 +216,7 @@ describe('Verification Server', () => {
 
         it('should return 400 if no search parameter is provided', async () => {
             const response = await request(app)
-                .get('/verification');
+                .get('/api/verification');
 
             expect(response.status).toBe(400);
             expect(response.body).toHaveProperty('error');
@@ -228,13 +228,13 @@ describe('Verification Server', () => {
             // create 2 concurrent requests using test_data.zip and test_data2.zip
             const requests = [
                 request(app)
-                    .post('/verify')
+                    .post('/api/verify')
                     .set('Authorization', `Bearer ${process.env.API_KEY}`)
                     .send({
                         url: mockServerUrl
                     }),
                 request(app)
-                    .post('/verify')
+                    .post('/api/verify')
                     .set('Authorization', `Bearer ${process.env.API_KEY}`)
                     .send({
                         url: mockServerUrl2
@@ -274,7 +274,7 @@ describe('Verification Server', () => {
 
         it('should create initial verification', async () => {
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({
                     url: mockServerUrl
@@ -296,7 +296,7 @@ describe('Verification Server', () => {
 
             // Make second request with same URL
             const response = await request(app)
-                .post('/verify')
+                .post('/api/verify')
                 .set('Authorization', `Bearer ${process.env.API_KEY}`)
                 .send({
                     url: mockServerUrl
@@ -314,7 +314,7 @@ describe('Verification Server', () => {
             
             // Verify through GET endpoint
             const verifyResponse = await request(app)
-                .get(`/verification?fileHash=${response.body.fileHash}`);
+                .get(`/api/verification?fileHash=${response.body.fileHash}`);
             
             expect(verifyResponse.status).toBe(200);
             expect(verifyResponse.body.fileHash).toBe(firstResponse.fileHash);
@@ -322,4 +322,4 @@ describe('Verification Server', () => {
             expect(verifyResponse.body.verificationTimestamp).toBeGreaterThan(firstCompleted.verificationTimestamp!);
         });
     });
-}); 
+});

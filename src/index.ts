@@ -9,7 +9,10 @@ import { downloadAndUnzip } from "./verifier";
 import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
-import { parseFinalProof, formatMoney } from "./utils";
+import { parseFinalProof, formatMoney, getProverVersion } from "./utils";
+import { exec, execSync } from "child_process";
+
+let curProverVersion = getProverVersion();
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -60,7 +63,7 @@ function releaseLock(): void {
 /*====ROUTES====*/
 
 // View routes (before API routes)
-app.get('/', async (req: Request, res: Response) => {
+app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -74,8 +77,6 @@ app.get('/', async (req: Request, res: Response) => {
         
         res.render('verifications', { 
             title: 'All proofs',
-            pageTitle: 'Proof of Reserve Verifications',
-            pageDescription: 'A list of all ZK global proofs verifications and their status.',
             verifications: result.verifications,
             total: result.total,
             currentPage: validPage,
@@ -90,7 +91,7 @@ app.get('/', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/verification/:identifier', async (req: Request, res: Response) => {
+app.get('/verification/:identifier', cacheMiddleware, async (req: Request, res: Response) => {
     try {
         const identifier = req.params.identifier;
         let verificationQuery: any = {};
@@ -119,7 +120,6 @@ app.get('/verification/:identifier', async (req: Request, res: Response) => {
 
         res.render('verification-detail', { 
             title: `Proof ${verification.proof_timestamp} - PoR Verifier`,
-            pageTitle: 'Verification Details',
             verification: {
                 ...verification,
                 valid: verification.valid === null ? null : Boolean(verification.valid),
@@ -159,7 +159,12 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 fs.readFileSync(finalProofPath, "utf-8")
             );
             
-            const { proofTimestamp, assets } = parseFinalProof(finalProofContent);
+            const { proofTimestamp, assets, proverVersion } = parseFinalProof(finalProofContent);
+
+            if (curProverVersion !== proverVersion) {
+                res.status(400).json({ error: "Prover version mismatch from the proof and the current prover version" });
+                return;
+            }
 
             // Store the assets data as JSON string
             const assetsStr = JSON.stringify(assets);
@@ -184,7 +189,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
             let existingAssets: string | null = null;
 
             if (!existingVerificationFileHash || !existingVerificationProofTimestamp) {
-                id = await upsertVerification(proofTimestamp, null, fileHash, null, assetsStr, url);
+                id = await upsertVerification(proofTimestamp, null, fileHash, null, assetsStr, url, proverVersion);
             } else {
                 const existingVerification = existingVerificationFileHash || existingVerificationProofTimestamp;
                 id = existingVerification.id;
@@ -197,7 +202,8 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 extractPath,
                 zipPath,
                 fileHash,
-                proofTimestamp
+                proofTimestamp,
+                url
             }).catch((error: Error) => {
                 console.error('Error adding job to queue:', error);
             });
@@ -209,6 +215,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 fileHash,
                 proofTimestamp,
                 verificationTimestamp: null,
+                proverVersion,
                 assets: existingAssets ? JSON.parse(existingAssets) : assets
             };
             res.json(response);
@@ -253,6 +260,7 @@ apiRouter.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {},
             verificationTimestamp: result.verification_timestamp === null ? null : parseInt(result.verification_timestamp.toString()),
             proofTimestamp: parseInt(result.proof_timestamp.toString()),
             id: result.id,
+            proverVersion: result.prover_version,
         };
 
         // Parse and include balances and assets if they exist
@@ -271,7 +279,7 @@ apiRouter.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {},
 }) as RequestHandler);
 
 // Get all verifications with pagination
-apiRouter.get("/verifications", (async (req: Request, res: Response) => {
+apiRouter.get("/verifications", cacheMiddleware, (async (req: Request, res: Response) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 10;
@@ -282,6 +290,10 @@ apiRouter.get("/verifications", (async (req: Request, res: Response) => {
         console.error("Error:", error);
         res.status(500).json({ error: "Internal server error" });
     }
+}) as RequestHandler);
+
+apiRouter.get("/prover-version", (async (req: Request, res: Response) => {
+    res.status(200).json({ proverVersion: curProverVersion });
 }) as RequestHandler);
 
 // Admin routes
@@ -319,6 +331,20 @@ adminRouter.post("/verifications/:id/delete", (async (req: Request, res: Respons
     }
 }) as RequestHandler);
 
+// Update prover version
+adminRouter.post("/update-prover", (async (_req: Request, res: Response) => {
+        exec(`sudo /update-prover.sh`, (error, _stdout, _stderr) => {
+            if (error) {
+                console.error("Error:", error);
+            } else {
+                curProverVersion = getProverVersion();
+                console.log(`Prover version updated to: ${curProverVersion}`);
+            }
+        });
+
+        res.status(200).json({ message: `Starting to update prover version...` });
+}) as RequestHandler);
+
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
 
@@ -333,6 +359,7 @@ const PORT = process.env.PORT || 3000;
 export function startServer(): ReturnType<typeof app.listen> {
     return app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
+        console.log(`Current prover version: ${curProverVersion}`);
     });
 }
 

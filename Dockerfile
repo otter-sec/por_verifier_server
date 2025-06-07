@@ -1,15 +1,22 @@
 FROM ubuntu:latest
 
 # install dependencies using apt
-RUN apt-get update && apt-get install -y nodejs npm git curl
+RUN apt-get update && apt-get install -y nodejs npm git curl sudo
 
 # install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# clone and compile plonky2_por
-RUN cd /opt && git clone https://github.com/otter-sec/por_v2.git
-RUN cd /opt/por_v2 && cargo build --locked --release && mv target/release/plonky2_por /usr/local/bin/
+# install prover using update-prover.sh
+COPY scripts/update-prover.sh /update-prover.sh
+
+# make the script executable and run it to compile the prover
+RUN chmod +x /update-prover.sh && \
+    /update-prover.sh
+
+
+# add the update-prover.sh to the sudoers file
+RUN echo "node ALL=(root) NOPASSWD: /update-prover.sh" >> /etc/sudoers
 
 # add node user
 RUN useradd -m node

@@ -1,25 +1,28 @@
 <div class="px-4 sm:px-6 lg:px-8">
     <!-- Header -->
-    <div class="mb-8">
-        <nav class="flex" aria-label="Breadcrumb">
-            <ol class="flex items-center space-x-4">
-                <li>
-                    <a href="/" class="text-gray-400 hover:text-gray-300 transition-colors">
-                        Verifications
-                    </a>
-                </li>
-                <li>
-                    <div class="flex items-center">
-                        <svg class="flex-shrink-0 h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-4 text-gray-300">Verification #<%= verification.id %></span>
-                    </div>
-                </li>
-            </ol>
-        </nav>
+    <div class="my-8">
+        <div class="flex justify-between items-center">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="flex items-center space-x-4">
+                    <li>
+                        <a href="/" class="text-gray-400 hover:text-gray-300 transition-colors">
+                            Verifications
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="flex-shrink-0 h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="ml-4 text-gray-300">Verification #<%= verification.id %></span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <img src="/img/backpack.png" alt="Backpack" class="h-10 w-auto">
+        </div>
         
-        <div class="mt-4 flex items-center space-x-4">
+        <div class="mt-1 flex items-center space-x-4">
             <% if (verification.valid === null) { %>
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-ottersec-yellow bg-opacity-20 text-ottersec-yellow">
                     ⏳ Pending Verification
@@ -78,12 +81,26 @@
                 </dd>
             </div>
             <% if (verification.proof_file_url) { %>
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-2">
                 <dt class="text-sm font-medium text-gray-400">Proof File URL</dt>
                 <dd class="mt-1 text-sm text-white break-all">
                     <a href="<%= verification.proof_file_url %>" target="_blank" class="text-ottersec-accent hover:text-ottersec-accent-light transition-colors">
                         <%= verification.proof_file_url %>
                     </a>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-400">Prover Version</dt>
+                <dd class="mt-1 text-sm text-white">
+                    <% if (verification.prover_version) { %>
+                        <a href="https://github.com/otter-sec/por_v2/releases/tag/<%= verification.prover_version %>" 
+                           target="_blank" 
+                           class="text-ottersec-accent hover:text-ottersec-accent-light transition-colors">
+                            PoRv2 <%= verification.prover_version %> (Download)
+                        </a>
+                    <% } else { %>
+                        <span class="text-gray-500">—</span>
+                    <% } %>
                 </dd>
             </div>
             <% } %>

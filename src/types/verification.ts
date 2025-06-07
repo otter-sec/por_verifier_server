@@ -4,6 +4,7 @@ export interface VerificationResponse {
     fileHash: string;
     proofTimestamp: number;
     verificationTimestamp: number | null;
+    proverVersion?: string | null;
     assets?: {
         [key: string]: {
             price: string;
@@ -24,6 +25,7 @@ export interface VerificationListResponse {
     verificationTimestamp: number | null;
     fileHash: string;
     valid: boolean | null;
+    proverVersion?: string | null;
 }
 
 export interface PaginatedResponse<T> {

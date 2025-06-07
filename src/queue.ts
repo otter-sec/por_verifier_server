@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { verifyProof } from './verifier';
-import { upsertVerification } from './database';
+import { verifyProof, downloadAndUnzip } from './verifier';
+import { upsertVerification, findVerification } from './database';
 import { invalidateCacheEntries } from './middlewares/cache';
 import fs from 'fs';
 import path from 'path';
@@ -11,6 +11,7 @@ export interface VerificationJob {
     zipPath: string;
     fileHash: string;
     proofTimestamp: number;
+    url: string; // Add URL to the job interface
 }
 
 class VerificationQueue extends EventEmitter {
@@ -40,9 +41,16 @@ class VerificationQueue extends EventEmitter {
         this.activeJobs++;
 
         try {
+            // Check if extractPath exists, if not, re-download and extract
+            if (!fs.existsSync(job.extractPath)) {
+                const { extractPath, zipPath } = await downloadAndUnzip(job.url);
+                job.extractPath = extractPath;
+                job.zipPath = zipPath;
+            }
+
             // Process the verification
             const { valid } = await verifyProof(job.extractPath);
-            
+
             // Update the database with the verification result
             const verificationTimestamp = Date.now();
             await upsertVerification(job.proofTimestamp, valid, job.fileHash, verificationTimestamp);

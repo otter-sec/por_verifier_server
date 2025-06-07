@@ -72,11 +72,11 @@ export async function downloadAndUnzip(url: string): Promise<DownloadResult> {
     fs.mkdirSync(extractPath);
 
     // Save the zip file
-    fs.writeFileSync(zipPath, fileBuffer);
+    fs.writeFileSync(zipPath, new Uint8Array(fileBuffer));
 
     // Calculate file hash
     const hashSum = crypto.createHash("sha256");
-    hashSum.update(fileBuffer);
+    hashSum.update(new Uint8Array(fileBuffer));
     const fileHash = hashSum.digest("hex");
 
     // Extract the zip file
