@@ -1,89 +1,142 @@
-# Plonky2 PoR Verification Server
+# PoR Verifier Server
 
-This is an Express server that provides HTTP endpoints for verifying Plonky2 PoR proofs and querying verification results.
+A server for verifying Proof of Reserve (PoR) proofs using Zero-Knowledge technology. This server provides both a web interface and a REST API for managing and verifying proofs.
 
-## Installation
+## Features
 
-To run the server, simply run:
+- Web interface for viewing verification status and details
+- REST API for programmatic access
+- Support for multiple proof versions
 
-```bash
-docker build . -t verifier_por
-docker run verifier_por:latest
-```
+## API Endpoints
 
-## Usage
+### Public API Endpoints
 
-### Authentication
+#### GET `/api/verification`
+Get verification details by ID, proof timestamp, or file hash.
 
-API Key is defined in a environment variable and should be present in the Authorization header in POST requests:
+**Query Parameters:**
+- `id` (optional): Verification ID
+- `proofTimestamp` (optional): Proof timestamp
+- `fileHash` (optional): File hash (SHA256)
 
-```http
-POST /verify HTTP1.1
-Host: localhost:3000
-Authorization: Bearer <API_KEY>
-
-<body>
-```
-
-### API Endpoints
-
-#### 1. Verify Proof Files
-
-**POST /verify**
-
-Verifies proof files from a zip file hosted on S3.
-
-Request body:
+**Response:**
 ```json
 {
-  "url": "https://your-s3-bucket.s3.amazonaws.com/proof-files.zip"
+    "valid": boolean | null,
+    "fileHash": string,
+    "verificationTimestamp": number | null,
+    "proofTimestamp": number,
+    "id": number,
+    "proverVersion": string,
+    "assets": {
+      asset_name: {
+        "price": string,
+        "balance": string,
+        "usd_balance": string
+      }
+    }
 }
 ```
 
-The zip file should contain:
-- `merkle_tree.json`
-- `final_proof.json`
+#### GET `/api/verifications`
+Get a paginated list of all verifications.
 
-Response:
+**Query Parameters:**
+- `page` (optional, default: 1): Page number
+- `pageSize` (optional, default: 10): Number of items per page
+
+**Response:**
 ```json
 {
-  "id": 1,
-  "valid": null,
-  "fileHash": "<sha256 hash of zip file>",
-  "proofTimestamp": "<timestamp from final proof file>",
-  "verificationTimestamp": null
+    "verifications": array,
+    "total": number
 }
 ```
 
-Note that the `valid` and `verificationTimestamp` are null because it will be validated by a async background service.
+#### GET `/api/prover-version`
+Get the current prover version.
 
-After the async verification, it is saved in an SQLite database that can be queried by the `/verification` endpoint.
-
-If you want to verify the proof again for some reason, you can resend the same request and the server will update the `valid` and the `verificationTimestamp` fields in the database. Note that the re-verification will fail if you send a proof file that contains the same proofTimestamp as an existing valid verification but with a different `fileHash` or vice-versa.
-
-#### 2. Query Verification
-
-**GET /verification**
-
-Query a verification result using one of these parameters:
-- `id`: The verification ID
-- `proofTimestamp`: The proof timestamp
-- `fileHash`: The SHA-256 hash of the zip file
-
-Example:
-```
-GET /verification?id=1
-GET /verification?proofTimestamp=1747444974000
-GET /verification?fileHash=abc123...
-```
-
-Response:
+**Response:**
 ```json
 {
-  "id": 1,
-  "proofTimestamp": "1747222224000",
-  "verificationTimestamp": "1747555554000",
-  "valid": true,
-  "fileHash": "abc123..."
+    "proverVersion": string
 }
 ```
+
+### Protected API Endpoints (Requires API Key)
+
+#### POST `/api/verify`
+Verify a new proof.
+
+**Headers:**
+- `Authorization: Bearer <API_KEY>`
+
+**Request Body:**
+```json
+{
+    "url": string  // URL to the proof file
+}
+```
+
+**Response:**
+```json
+{
+    "id": number,
+    "valid": boolean | null,
+    "fileHash": string,
+    "verificationTimestamp": number | null,
+    "proofTimestamp": number,
+    "proverVersion": string
+}
+```
+
+### Admin API Endpoints (Requires Admin API Key)
+
+#### POST `/api/admin/verifications/:id/delete`
+Delete a verification. This is used in production if an error occurs with a verification and it needs to be removed for some reason.
+
+**Headers:**
+- `Authorization: Bearer <ADMIN_API_KEY>`
+
+**Response:**
+```json
+{
+    "message": "Verification deleted successfully"
+}
+```
+
+#### POST `/api/admin/update-prover`
+Update the prover version. Downloads and installs the latest release of [PoRv2](https://github.com/otter-sec/por_v2)
+
+**Headers:**
+- `Authorization: Bearer <ADMIN_API_KEY>`
+
+**Response:**
+```json
+{
+    "message": "Starting to update prover version..."
+}
+```
+
+## Web Interface Endpoints
+
+### GET `/`
+Main page showing a list of all verifications with pagination.
+
+**Query Parameters:**
+- `page` (optional, default: 1): Page number
+- `pageSize` (optional, default: 20): Number of items per page
+
+### GET `/verification/:identifier`
+View details of a specific verification.
+
+**Parameters:**
+- `identifier`: Can be either a proof timestamp or a file hash
+
+## Environment Variables
+
+- `PORT` (optional, default: 3000): Server port
+- `API_KEY`: API key for protected endpoints
+- `ADMIN_API_KEY`: API key for admin endpoints
+
