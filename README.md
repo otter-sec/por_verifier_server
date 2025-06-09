@@ -23,17 +23,17 @@ Get verification details by ID, proof timestamp, or file hash.
 **Response:**
 ```json
 {
-    "valid": boolean | null,
-    "fileHash": string,
-    "verificationTimestamp": number | null,
-    "proofTimestamp": number,
-    "id": number,
-    "proverVersion": string,
+    "valid": "boolean | null",
+    "fileHash": "string",
+    "verificationTimestamp": "number | null",
+    "proofTimestamp": "number",
+    "id": "number",
+    "proverVersion": "string",
     "assets": {
-      asset_name: {
-        "price": string,
-        "balance": string,
-        "usd_balance": string
+      "<asset_name>": {
+        "price": "string",
+        "balance": "string",
+        "usd_balance": "string"
       }
     }
 }
@@ -49,8 +49,8 @@ Get a paginated list of all verifications.
 **Response:**
 ```json
 {
-    "verifications": array,
-    "total": number
+    "verifications": "array",
+    "total": "number"
 }
 ```
 
@@ -60,7 +60,7 @@ Get the current prover version.
 **Response:**
 ```json
 {
-    "proverVersion": string
+    "proverVersion": "string"
 }
 ```
 
@@ -75,19 +75,19 @@ Verify a new proof.
 **Request Body:**
 ```json
 {
-    "url": string  // URL to the proof file
+    "url": "<URL to the proof file>"
 }
 ```
 
 **Response:**
 ```json
 {
-    "id": number,
-    "valid": boolean | null,
-    "fileHash": string,
-    "verificationTimestamp": number | null,
-    "proofTimestamp": number,
-    "proverVersion": string
+    "id": "number",
+    "valid": "boolean | null",
+    "fileHash": "string",
+    "verificationTimestamp": "number | null",
+    "proofTimestamp": "number",
+    "proverVersion": "string"
 }
 ```
 
