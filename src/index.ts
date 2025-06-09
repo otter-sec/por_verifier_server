@@ -63,8 +63,7 @@ function releaseLock(): void {
 /*====ROUTES====*/
 
 // View routes (before API routes)
-// app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
-app.get('/', async (req: Request, res: Response) => {
+app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -92,8 +91,7 @@ app.get('/', async (req: Request, res: Response) => {
     }
 });
 
-// app.get('/verification/:identifier', cacheMiddleware, async (req: Request, res: Response) => {
-app.get('/verification/:identifier', async (req: Request, res: Response) => {
+app.get('/verification/:identifier', cacheMiddleware, async (req: Request, res: Response) => {
     try {
         const identifier = req.params.identifier;
         let verificationQuery: any = {};
