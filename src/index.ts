@@ -10,7 +10,7 @@ import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
 import { parseFinalProof, formatMoney, getProverVersion } from "./utils";
-import { exec, execSync } from "child_process";
+import { exec } from "child_process";
 
 let curProverVersion = getProverVersion();
 
@@ -63,7 +63,8 @@ function releaseLock(): void {
 /*====ROUTES====*/
 
 // View routes (before API routes)
-app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
+// app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
+app.get('/', async (req: Request, res: Response) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -91,7 +92,8 @@ app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.get('/verification/:identifier', cacheMiddleware, async (req: Request, res: Response) => {
+// app.get('/verification/:identifier', cacheMiddleware, async (req: Request, res: Response) => {
+app.get('/verification/:identifier', async (req: Request, res: Response) => {
     try {
         const identifier = req.params.identifier;
         let verificationQuery: any = {};
