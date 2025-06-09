@@ -1,6 +1,8 @@
 # PoR Verifier Server
 
-A server for verifying Proof of Reserve (PoR) proofs using Zero-Knowledge technology. This server provides both a web interface and a REST API for managing and verifying proofs.
+A server for verifying Proof of Reserve (PoR) proofs of CEXs using Zero-Knowledge technology. This server provides both a web interface and a REST API for managing and verifying proofs.
+
+It uses the latest release of our [PoRv2](https://github.com/otter-sec/por_v2) prover CLI to verify proofs. If a proof was created/verified with a former version, it will still be available in our database, however, the exchange won't be able to submit new proofs created using former versions of the prover.
 
 ## Features
 
@@ -13,12 +15,12 @@ A server for verifying Proof of Reserve (PoR) proofs using Zero-Knowledge techno
 ### Public API Endpoints
 
 #### GET `/api/verification`
-Get verification details by ID, proof timestamp, or file hash.
+Get verification details by either ID, proof timestamp, or file hash.
 
 **Query Parameters:**
-- `id` (optional): Verification ID
-- `proofTimestamp` (optional): Proof timestamp
-- `fileHash` (optional): File hash (SHA256)
+- `id`: Verification ID
+- `proofTimestamp`: Proof timestamp
+- `fileHash`: File hash (SHA256)
 
 **Response:**
 ```json
