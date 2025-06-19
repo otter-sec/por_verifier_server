@@ -208,6 +208,8 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 console.error('Error adding job to queue:', error);
             });
 
+            invalidateGlobalCacheEntries();
+
             // Return the initial entry
             const response: VerificationResponse = {
                 id,
@@ -219,8 +221,6 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 assets: existingAssets ? JSON.parse(existingAssets) : assets
             };
             res.json(response);
-
-            invalidateGlobalCacheEntries();
 
         } catch(error) {
             console.error("Error:", error);
