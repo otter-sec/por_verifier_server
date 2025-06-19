@@ -6,7 +6,7 @@ import { authMiddleware } from "./middlewares/auth";
 import { adminAuthMiddleware } from "./middlewares/adminAuth";
 import { findVerification, upsertVerification, getAllVerifications, deleteVerification } from "./database";
 import { downloadAndUnzip } from "./verifier";
-import { cacheMiddleware, invalidateCacheEntries } from "./middlewares/cache";
+import { cacheMiddleware, invalidateCacheEntries, invalidateGlobalCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
 import { parseFinalProof, formatMoney, getProverVersion } from "./utils";
@@ -219,6 +219,8 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 assets: existingAssets ? JSON.parse(existingAssets) : assets
             };
             res.json(response);
+
+            invalidateGlobalCacheEntries();
 
         } catch(error) {
             console.error("Error:", error);

@@ -105,3 +105,13 @@ export const invalidateCacheEntries = (id: string | number, proofTimestamp: stri
         cache.delete(key);
     });
 };
+
+export const invalidateGlobalCacheEntries = (): void => {
+    const cacheKeys = [
+        "/",
+        "/api/verification",
+    ]
+    cacheKeys.forEach(key => {
+        cache.delete(key);
+    });
+}
