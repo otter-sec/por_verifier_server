@@ -14,6 +14,7 @@
   "dependencies": {
     "@types/ejs": "3.1.5",
     "@types/express-ejs-layouts": "2.5.4",
+    "@types/morgan": "^1.9.10",
     "axios": "1.9.0",
     "bignumber.js": "9.3.0",
     "crypto": "1.0.1",
@@ -23,6 +24,7 @@
     "express-ejs-layouts": "2.5.1",
     "ipaddr.js": "2.2.0",
     "lru-cache": "11.1.0",
+    "morgan": "^1.10.0",
     "sqlite3": "5.1.7",
     "unzipper": "0.12.3"
   },

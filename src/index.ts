@@ -2,6 +2,7 @@ import express, { Request, Response, RequestHandler } from "express";
 import fs from "fs";
 import path from "path";
 import expressLayouts from 'express-ejs-layouts';
+import morgan from 'morgan';
 import { authMiddleware } from "./middlewares/auth";
 import { adminAuthMiddleware } from "./middlewares/adminAuth";
 import { findVerification, upsertVerification, getAllVerifications, deleteVerification } from "./database";
@@ -23,6 +24,9 @@ if (fs.existsSync('.env')) {
 }
 
 const app = express();
+
+// Set up Morgan logging
+app.use(morgan('combined'));
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
@@ -143,6 +147,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
     try {
         const { url } = req.body as { url?: string };
         if (!url) {
+            console.log("URL not provided");
             return res.status(400).json({ error: "URL is required" });
         }
 
@@ -150,6 +155,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
         await acquireLock();
 
         try {
+            console.log("Downloading proof from URL: ", url);
             // Download and unzip the file
             const { extractPath, fileHash, zipPath } = await downloadAndUnzip(url);
 
@@ -162,6 +168,7 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
             const { proofTimestamp, assets, proverVersion } = parseFinalProof(finalProofContent);
 
             if (curProverVersion !== proverVersion) {
+                console.log(`Prover version mismatch from the proof and the current prover version: ${curProverVersion} !== ${proverVersion}`);
                 res.status(400).json({ error: "Prover version mismatch from the proof and the current prover version" });
                 return;
             }
@@ -197,15 +204,13 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
             }
 
             // Add job to queue for background processing
-            queue.addJob({
+            await queue.addJob({
                 id,
                 extractPath,
                 zipPath,
                 fileHash,
                 proofTimestamp,
                 url
-            }).catch((error: Error) => {
-                console.error('Error adding job to queue:', error);
             });
 
             invalidateGlobalCacheEntries();

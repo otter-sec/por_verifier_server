@@ -40,9 +40,17 @@ class VerificationQueue extends EventEmitter {
         const job = this.queue.shift()!;
         this.activeJobs++;
 
+        console.log("Starting to process job: ", job.id);
+        console.log("Extract path: ", job.extractPath);
+        console.log("Zip path: ", job.zipPath);
+        console.log("File hash: ", job.fileHash);
+        console.log("Proof timestamp: ", job.proofTimestamp);
+        console.log("URL: ", job.url);
+
         try {
             // Check if extractPath exists, if not, re-download and extract
             if (!fs.existsSync(job.extractPath)) {
+                console.log("Extract path does not exist, re-downloading and extracting");
                 const { extractPath, zipPath } = await downloadAndUnzip(job.url);
                 job.extractPath = extractPath;
                 job.zipPath = zipPath;
@@ -65,6 +73,8 @@ class VerificationQueue extends EventEmitter {
             } catch (error) {
                 console.error('Error cleaning up files:', error);
             }
+
+            console.log("Successfully processed job: ", job.id);
 
         } catch (error) {
             console.error('Error processing verification job:', error);
