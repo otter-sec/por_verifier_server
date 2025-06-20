@@ -15,7 +15,7 @@ jobs:
       id-token: write
 
     env:
-      IMAGE_NAME: ${{ vars.REPOSITORY_URL }}/por-verifier
+      IMAGE_NAME: ${{ vars.REPOSITORY_URL }}/por-verifier-server
       IMAGE_TAG: ${{ github.ref_name }}
 
     steps:
