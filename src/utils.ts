@@ -111,17 +111,21 @@ export function formatMoney(numberString: string): string {
   // Split by decimal point
   const parts = numberString.toString().split(".");
   const integerPart = parts[0];
-  const decimalPart = parts[1];
+  let decimalPart = parts[1];
 
   // Add thousands commas to integer part
   const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   // Concatenate with decimal part if it exists
   if (decimalPart !== undefined) {
+    if (decimalPart.length < 2) {
+      decimalPart = decimalPart.padEnd(2, "0");
+    }
+
     return `${formattedInteger}.${decimalPart}`;
   }
 
-  return formattedInteger;
+  return formattedInteger + ".00";
 }
 
 export function getProverVersion(): string {
