@@ -134,7 +134,7 @@ export function formatMoney(numberString: string): string {
 
 export function getProverVersion(): string {
   try {
-    let output = execSync("plonky2_por version").toString();
+    let output = execSync("plonky2_por version", {cwd: "/"}).toString();
 
     // parse with regex
     const regex = /(v\d+\.\d+\.\d+)/;
@@ -162,7 +162,7 @@ export async function updateProver(version: string): Promise<void> {
   fs.writeFileSync(tempFile, response.data);
 
   // extract tar.gz to the prover path
-  tar.x({ file: tempFile, cwd: proverPath });
+  await tar.x({ file: tempFile, cwd: proverPath });
 
   // make the prover executable
   fs.chmodSync(path.join(proverPath, "plonky2_por"), 0o755);
@@ -175,6 +175,8 @@ export async function updateProver(version: string): Promise<void> {
   if (newProverVersion !== version) {
     throw new Error("Prover version mismatch");
   }
+
+  console.log("[+] Prover updated to version:", newProverVersion);
 }
 
 export function isVersionNewer(version1: string, version2: string): boolean {
