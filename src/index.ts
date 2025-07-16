@@ -10,10 +10,9 @@ import { downloadAndUnzip } from "./verifier";
 import { cacheMiddleware, invalidateCacheEntries, invalidateGlobalCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
-import { parseFinalProof, formatMoney, getProverVersion } from "./utils";
-import { exec } from "child_process";
+import { parseFinalProof, formatMoney, getProverVersion, isVersionNewer } from "./utils";
 
-let curProverVersion = getProverVersion();
+let curProverVersion = "unknown";
 
 // parse .env if it exists
 if (fs.existsSync('.env')) {
@@ -167,9 +166,15 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
             
             const { proofTimestamp, assets, proverVersion } = parseFinalProof(finalProofContent);
 
-            if (curProverVersion !== proverVersion) {
-                console.log(`Prover version mismatch from the proof and the current prover version: ${curProverVersion} !== ${proverVersion}`);
-                res.status(400).json({ error: "Prover version mismatch from the proof and the current prover version" });
+            // update the prover version if it is newer
+            // we update the curProverVersion to prevent next uploaded proofs from being older versions
+            // since the prover will only be updated in the queue job
+            if (isVersionNewer(proverVersion, curProverVersion)){
+                console.log(`Prover version is newer than the current prover version: ${proverVersion} > ${curProverVersion}. Prover will be updated.`);
+                curProverVersion = proverVersion;
+            } else if (curProverVersion !== proverVersion) {
+                console.log(`Prover version is older than the current prover version: ${proverVersion} < ${curProverVersion}`);
+                res.status(400).json({ error: `Prover version is older than the current prover version: ${proverVersion} < ${curProverVersion}` });
                 return;
             }
 
@@ -210,7 +215,8 @@ apiRouter.post("/verify", authMiddleware, (async (req: Request, res: Response) =
                 zipPath,
                 fileHash,
                 proofTimestamp,
-                url
+                url,
+                proverVersion
             });
 
             invalidateGlobalCacheEntries();
@@ -300,7 +306,7 @@ apiRouter.get("/verifications", cacheMiddleware, (async (req: Request, res: Resp
 }) as RequestHandler);
 
 apiRouter.get("/prover-version", (async (req: Request, res: Response) => {
-    res.status(200).json({ proverVersion: curProverVersion });
+    res.status(200).json({ proverVersion: getProverVersion() });
 }) as RequestHandler);
 
 // Admin routes
@@ -338,20 +344,6 @@ adminRouter.post("/verifications/:id/delete", (async (req: Request, res: Respons
     }
 }) as RequestHandler);
 
-// Update prover version
-adminRouter.post("/update-prover", (async (_req: Request, res: Response) => {
-        exec(`sudo /update-prover.sh`, (error, _stdout, _stderr) => {
-            if (error) {
-                console.error("Error:", error);
-            } else {
-                curProverVersion = getProverVersion();
-                console.log(`Prover version updated to: ${curProverVersion}`);
-            }
-        });
-
-        res.status(200).json({ message: `Starting to update prover version...` });
-}) as RequestHandler);
-
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
 
@@ -366,7 +358,6 @@ const PORT = process.env.PORT || 3000;
 export function startServer(): ReturnType<typeof app.listen> {
     return app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
-        console.log(`Current prover version: ${curProverVersion}`);
     });
 }
 

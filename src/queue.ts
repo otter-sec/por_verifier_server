@@ -3,10 +3,11 @@ import { verifyProof, downloadAndUnzip } from './verifier';
 import { upsertVerification, findVerification } from './database';
 import { invalidateCacheEntries } from './middlewares/cache';
 import fs from 'fs';
-import path from 'path';
+import { getProverVersion, isVersionNewer, updateProver } from './utils';
 
 export interface VerificationJob {
     id: number;
+    proverVersion: string;
     extractPath: string;
     zipPath: string;
     fileHash: string;
@@ -54,6 +55,21 @@ class VerificationQueue extends EventEmitter {
                 const { extractPath, zipPath } = await downloadAndUnzip(job.url);
                 job.extractPath = extractPath;
                 job.zipPath = zipPath;
+            }
+
+            // Check if the prover version is newer than the current prover version
+            // we don't use curProverVersion because it is updated as soon as the job is added to the queue
+            // to prevent older versions from being processed
+            if (isVersionNewer(job.proverVersion, getProverVersion())) {
+                console.log("Prover version is newer than the current prover version, updating prover...");
+                try {
+                    await updateProver(job.proverVersion);
+                } catch (error) {
+                    console.error("Error updating prover:", error);
+                    // Update database to mark verification as failed
+                    await upsertVerification(job.proofTimestamp, false, job.fileHash, Date.now());
+                    return;
+                }
             }
 
             // Process the verification

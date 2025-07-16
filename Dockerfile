@@ -7,19 +7,11 @@ RUN apt-get update && apt-get install -y nodejs npm git curl sudo
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# install prover using update-prover.sh
-COPY scripts/update-prover.sh /update-prover.sh
-
-# make the script executable and run it to compile the prover
-RUN chmod +x /update-prover.sh && \
-    /update-prover.sh
-
-
-# add the update-prover.sh to the sudoers file
-RUN echo "node ALL=(root) NOPASSWD: /update-prover.sh" >> /etc/sudoers
-
 # add node user
 RUN useradd -m node
+
+# add node home to path --> this is where the prover will be installed by the application
+ENV PATH="/home/node/:${PATH}"
 
 # copy the server code
 COPY . /app

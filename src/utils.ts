@@ -4,6 +4,10 @@ import dns from "node:dns";
 import BigNumber from "bignumber.js";
 import { ZK_FIELD_ORDER } from "./constants";
 import { execSync } from "node:child_process";
+import axios from "axios";
+import * as tar from 'tar'
+import path from "node:path";
+import fs from "node:fs";
 
 function isPrivateIp(ip: string): boolean {
   return ipaddr.parse(ip).range() !== "unicast";
@@ -139,4 +143,62 @@ export function getProverVersion(): string {
   } catch (error) {
     return "unknown";
   }
+}
+
+export async function updateProver(version: string): Promise<void> {
+  const proverUrl = `https://github.com/otter-sec/por_v2/releases/download/${version}/plonky2_por-Linux-gnu-x86_64.tar.gz`;
+  const proverPath = "/home/node/";
+
+  // remove the current prover if it exists
+  if (fs.existsSync(path.join(proverPath, "plonky2_por"))) {
+    fs.rmSync(path.join(proverPath, "plonky2_por"), { recursive: true });
+  }
+
+  // download the prover and extract it to the prover path
+  const response = await axios.get(proverUrl, { responseType: "arraybuffer" });
+
+  // create a temporary file to store the prover
+  const tempFile = path.join(proverPath, "plonky2_por.tar.gz");
+  fs.writeFileSync(tempFile, response.data);
+
+  // extract tar.gz to the prover path
+  tar.x({ file: tempFile, cwd: proverPath });
+
+  // make the prover executable
+  fs.chmodSync(path.join(proverPath, "plonky2_por"), 0o755);
+
+  // remove the temporary file
+  fs.unlinkSync(tempFile);
+
+  // check if the prover was updated successfully
+  const newProverVersion = getProverVersion();
+  if (newProverVersion !== version) {
+    throw new Error("Prover version mismatch");
+  }
+}
+
+export function isVersionNewer(version1: string, version2: string): boolean {
+  if (version1 === "unknown") {
+    return false;
+  } else if (version2 === "unknown") {
+    return true;
+  }
+
+  // split the versions into arrays of numbers
+  const v1 = version1.replace("v", "").split(".").map(Number);
+  const v2 = version2.replace("v", "").split(".").map(Number);
+
+  // compare the versions
+  for (let i = 0; i < v1.length; i++) {
+    if (v1[i] > v2[i]) {
+      return true;
+    }
+    if (v1[i] < v2[i]) {
+      return false;
+    }
+    // if both parts are equal, continue to the next part
+  }
+
+  // if all parts are equal, the versions are the same
+  return false;
 }
