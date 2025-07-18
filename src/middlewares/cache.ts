@@ -97,21 +97,20 @@ export const invalidateCacheEntries = (id: string | number, proofTimestamp: stri
     const cacheKeys = [
         `/verification/${proofTimestamp}`,
         `/verification/${fileHash}`,
-        "/",
-        "/api/verifications"
     ]
 
     cacheKeys.forEach(key => {
         cache.delete(key);
     });
+
+    invalidateGlobalCacheEntries();
 };
 
 export const invalidateGlobalCacheEntries = (): void => {
-    const cacheKeys = [
-        "/",
-        "/api/verification",
-    ]
-    cacheKeys.forEach(key => {
-        cache.delete(key);
+    cache.delete('/');
+    cache.forEach((value, key) => {
+        if (key.startsWith('/api/verifications') || key.startsWith('/?')) {
+            cache.delete(key);
+        }
     });
 }
