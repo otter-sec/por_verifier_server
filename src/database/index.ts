@@ -175,6 +175,7 @@ export function getAllVerifications(page: number = 1, pageSize: number = 10): Pr
           prover_version as proverVersion,
           valid
         FROM verifications 
+        WHERE valid=true OR valid IS NULL
         ORDER BY proof_timestamp DESC 
         LIMIT ? OFFSET ?`,
         [pageSize, offset],
