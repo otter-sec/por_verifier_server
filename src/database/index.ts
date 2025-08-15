@@ -157,7 +157,7 @@ export function getAllVerifications(page: number = 1, pageSize: number = 10): Pr
     const offset = (page - 1) * pageSize;
     
     // Get total count
-    db.get('SELECT COUNT(*) as total FROM verifications', (err: Error | null, row: { total: number } | undefined) => {
+    db.get('SELECT COUNT(*) as total FROM verifications WHERE valid=true OR valid IS NULL', (err: Error | null, row: { total: number } | undefined) => {
       if (err) {
         reject(err);
         return;
