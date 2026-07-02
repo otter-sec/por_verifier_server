@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    uses: otter-eng/workflows/.github/workflows/build-image.yaml@main
+    uses: otter-sec/workflows/.github/workflows/build-image.yaml@main
     with:
       environment: prod
       name: por-verifier-server
@@ -18,7 +18,7 @@ jobs:
 
   release:
     needs: build
-    uses: otter-eng/workflows/.github/workflows/deploy-to-gke.yaml@main
+    uses: otter-sec/workflows/.github/workflows/deploy-to-gke.yaml@main
     with:
       environment: prod
       containers: "por-verifier-server=por-verifier-server:${{ github.ref_name }}"
