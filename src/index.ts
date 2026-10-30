@@ -5,7 +5,7 @@ import expressLayouts from 'express-ejs-layouts';
 import morgan from 'morgan';
 import { authMiddleware } from "./middlewares/auth";
 import { adminAuthMiddleware } from "./middlewares/adminAuth";
-import { findVerification, upsertVerification, getAllVerifications, deleteVerification } from "./database";
+import { findVerification, upsertVerification, getAllVerifications, deleteVerification, runMigrations } from "./database";
 import { downloadAndUnzip } from "./verifier";
 import { cacheMiddleware, invalidateCacheEntries, invalidateGlobalCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
@@ -64,6 +64,11 @@ function releaseLock(): void {
 
 //////////////////
 /*====ROUTES====*/
+
+// Health check used by the liveness and readiness probes
+app.get('/health', (req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok' });
+});
 
 // View routes (before API routes)
 app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
@@ -363,7 +368,13 @@ export function startServer(): ReturnType<typeof app.listen> {
 
 // Only start the server if this file is run directly
 if (require.main === module) {
-    startServer();
+    // Make sure the database schema is up to date before accepting requests
+    runMigrations()
+        .then(() => startServer())
+        .catch((error) => {
+            console.error('Error running database migrations:', error);
+            process.exit(1);
+        });
 }
 
 // Export the app for testing

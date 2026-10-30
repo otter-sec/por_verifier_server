@@ -1,9 +1,9 @@
 import request from 'supertest';
-import fs from 'fs';
 import path from 'path';
 import express, { Express } from 'express';
 import app from '../src/index';
 import { verificationQueue } from '../src/queue';
+import { runMigrations, getPool, closeDb } from '../src/database';
 
 interface VerificationResponse {
     id: number;
@@ -63,6 +63,8 @@ describe('Verification Server', () => {
 
     // Setup mock server and test files
     beforeAll(async () => {
+        await runMigrations();
+
         // Setup mock HTTP server to serve the zip file
         const mockApp = express();
         mockApp.get('/proof.zip', (req, res) => {
@@ -108,14 +110,12 @@ describe('Verification Server', () => {
                 // Wait for all jobs to complete
                 await waitForQueueEmpty();
                 
-                // remove the database file if it exists
-                if (fs.existsSync('/db/verifications.db')) {
-                    fs.unlinkSync('/db/verifications.db');
-                }
-
-                mockServer.close(done);
+                // drop the tables so the next run starts with an empty database
+                await getPool().query('DROP TABLE IF EXISTS verifications, migration_metadata');
             } catch (error) {
                 console.error('Error during cleanup:', error);
+            } finally {
+                await closeDb();
                 mockServer.close(done);
             }
         })();

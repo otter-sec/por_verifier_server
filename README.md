@@ -141,4 +141,4 @@ View details of a specific verification.
 - `PORT` (optional, default: 3000): Server port
 - `API_KEY`: API key for protected endpoints
 - `ADMIN_API_KEY`: API key for admin endpoints
-
+- `DATABASE_URL`: Postgres connection string, e.g. `postgres://user@host:5432/por_verifier`. Anything missing from it falls back to the standard `PG*` variables (`PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, ...)

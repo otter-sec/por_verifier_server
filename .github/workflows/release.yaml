@@ -3,14 +3,14 @@ name: Build and Release
 on:
   push:
     tags:
-    - '**'
+    - 'v*'
 
 jobs:
   build:
     uses: otter-sec/workflows/.github/workflows/build-image.yaml@main
     with:
       environment: prod
-      name: por-verifier-server
+      name: app
       tag: ${{ github.ref_name }}
     permissions:
       contents: read
@@ -18,10 +18,16 @@ jobs:
 
   release:
     needs: build
-    uses: otter-sec/workflows/.github/workflows/deploy-to-gke.yaml@main
+    uses: otter-sec/workflows/.github/workflows/deploy-to-cloud-run.yaml@main
     with:
       environment: prod
-      containers: "por-verifier-server=por-verifier-server:${{ github.ref_name }}"
+      containers: |
+        [
+          {
+            "name": "app",
+            "image": "app:${{ github.ref_name }}"
+          }
+        ]
     permissions:
       contents: read
       id-token: write

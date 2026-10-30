@@ -1,0 +1,57 @@
+# Local development setup
+#   docker compose up --build        run the server on http://localhost:3000
+#   docker compose run --rm test     run the tests inside the image (they need the prover, which is installed in /home/node)
+#   docker compose down -v           stop everything and delete the database
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: por_verifier
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    configs:
+      # only runs when the database is initialized for the first time
+      - source: create-test-database
+        target: /docker-entrypoint-initdb.d/create-test-database.sql
+    healthcheck:
+      # check over TCP, the temporary server started while initializing only listens on the unix socket
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "por_verifier"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  server:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/por_verifier
+      API_KEY: ${API_KEY:-test-api-key}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-test-api-key}
+    ports:
+      - "3000:3000"
+
+  test:
+    build: .
+    profiles: [test]
+    command: ["npx", "jest"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/por_verifier_test
+
+configs:
+  create-test-database:
+    content: |
+      CREATE DATABASE por_verifier_test;
+
+volumes:
+  postgres-data:
