@@ -1,3 +1,4 @@
+import { assertValidPagination } from '../pagination';
 import { getPool } from './pool';
 
 export { getPool, closeDb } from './pool';
@@ -104,6 +105,8 @@ export async function findVerification(params: VerificationParams): Promise<Veri
 
 // Function to get all verifications with pagination
 export async function getAllVerifications(page: number = 1, pageSize: number = 10): Promise<{ verifications: VerificationListResponse[], total: number }> {
+  // Callers clamp untrusted input with parsePagination, anything out of range here is a bug
+  assertValidPagination(page, pageSize);
   const offset = (page - 1) * pageSize;
 
   // Get total count
@@ -113,7 +116,6 @@ export async function getAllVerifications(page: number = 1, pageSize: number = 1
   const total = countResult.rows[0]?.total || 0;
 
   // Get paginated results
-  // Postgres rejects negative LIMIT/OFFSET, SQLite treated them as "no limit" and 0, so we keep that behavior
   const result = await getPool().query<VerificationListResponse>(
     `SELECT
       id,
@@ -126,7 +128,7 @@ export async function getAllVerifications(page: number = 1, pageSize: number = 1
     WHERE valid=true OR valid IS NULL
     ORDER BY proof_timestamp DESC, id DESC
     LIMIT $1 OFFSET $2`,
-    [pageSize < 0 ? null : pageSize, Math.max(0, offset)]
+    [pageSize, offset]
   );
 
   return { verifications: result.rows, total };

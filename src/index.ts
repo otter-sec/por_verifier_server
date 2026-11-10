@@ -11,6 +11,7 @@ import { cacheMiddleware, invalidateCacheEntries, invalidateGlobalCacheEntries }
 import { VerificationResponse, VerificationQuery } from "./types/verification";
 import { verificationQueue as queue } from "./queue";
 import { parseFinalProof, formatMoney, getProverVersion, isVersionNewer } from "./utils";
+import { parsePagination } from "./pagination";
 
 let curProverVersion = "unknown";
 
@@ -36,7 +37,9 @@ app.set('layout', 'layout');
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(express.json());
+// Request bodies are small JSON payloads ({ url }), so compressed bodies are rejected (415) rather than inflated.
+// This keeps unauthenticated clients away from the decompression code path (GHSA-27r3-jxmh-p828).
+app.use(express.json({ inflate: false }));
 
 // Mutex-like lock mechanism
 let isVerifying = false;
@@ -73,12 +76,7 @@ app.get('/health', (req: Request, res: Response) => {
 // View routes (before API routes)
 app.get('/', cacheMiddleware, async (req: Request, res: Response) => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
-        const pageSize = parseInt(req.query.pageSize as string) || 20;
-        
-        // Ensure reasonable limits
-        const validPage = Math.max(1, page);
-        const validPageSize = Math.min(Math.max(1, pageSize), 100);
+        const { page: validPage, pageSize: validPageSize } = parsePagination(req.query, 20);
         
         const result = await getAllVerifications(validPage, validPageSize);
         const totalPages = Math.ceil(result.total / validPageSize);
@@ -299,8 +297,7 @@ apiRouter.get("/verification", cacheMiddleware, (async (req: Request<{}, {}, {},
 // Get all verifications with pagination
 apiRouter.get("/verifications", cacheMiddleware, (async (req: Request, res: Response) => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
-        const pageSize = parseInt(req.query.pageSize as string) || 10;
+        const { page, pageSize } = parsePagination(req.query, 10);
 
         const result = await getAllVerifications(page, pageSize);
         res.json(result);

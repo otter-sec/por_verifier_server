@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import unzipper from "unzipper";
 import { promisify } from "util";
 import { exec } from "child_process";
@@ -41,6 +41,10 @@ export async function downloadAndUnzip(url: string): Promise<DownloadResult> {
     const config: AxiosRequestConfig = {
         method: "get",
         url: url,
+        // The SSRF protections below (pinned DNS lookup, no redirects, size limits) rely on the node http adapter,
+        // and a proxy from HTTP(S)_PROXY would bypass the pinned lookup, so set both explicitly instead of relying on defaults
+        adapter: "http",
+        proxy: false,
         responseType: "arraybuffer",
         timeout: 120 * 1000, // 2 minutes --> the files are usually big and can take a while to download
         maxRedirects: 0,

@@ -13,27 +13,26 @@
     "migrate:sqlite": "npm run build:server && node dist/scripts/migrateFromSqlite.js"
   },
   "dependencies": {
-    "@types/ejs": "3.1.5",
-    "@types/express-ejs-layouts": "2.5.4",
-    "@types/morgan": "^1.9.10",
-    "axios": "1.9.0",
+    "axios": "1.21.1",
     "bignumber.js": "9.3.0",
-    "crypto": "1.0.1",
     "dotenv": "16.5.0",
     "ejs": "3.1.10",
-    "express": "4.21.2",
+    "express": "4.22.3",
     "express-ejs-layouts": "2.5.1",
     "ipaddr.js": "2.2.0",
     "lru-cache": "11.1.0",
-    "morgan": "^1.10.0",
+    "morgan": "^1.12.1",
     "pg": "8.23.1",
     "pg-connection-string": "2.14.1",
     "tar": "^7.4.3",
     "unzipper": "0.12.3"
   },
   "devDependencies": {
+    "@types/ejs": "3.1.5",
     "@types/express": "4.17.21",
+    "@types/express-ejs-layouts": "2.5.4",
     "@types/jest": "29.5.12",
+    "@types/morgan": "^1.9.10",
     "@types/node": "20.11.24",
     "@types/pg": "8.23.1",
     "@types/sqlite3": "3.1.11",
@@ -45,6 +44,9 @@
     "ts-jest": "29.1.2",
     "ts-node-dev": "2.0.0",
     "typescript": "5.3.3"
+  },
+  "overrides": {
+    "body-parser": ">=1.20.9 <2"
   },
   "jest": {
     "testEnvironment": "node",

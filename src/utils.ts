@@ -26,6 +26,10 @@ export async function resolveAndValidateUrl(url: string): Promise<ResolvedUrl> {
   }
 
   const parsedUrl = new URL(url);
+  // startsWith("http") alone would also accept e.g. "httpx://", only plain http(s) is downloaded
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new Error("Invalid URL");
+  }
 
   // check if it is a valid port
   if (parsedUrl.port && !isValidPort(parsedUrl.port)) {

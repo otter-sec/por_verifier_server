@@ -1,8 +1,14 @@
-README.md
-node_modules
-data
-dist
-.vscode
-.git
-.gitignore
-.env.example
+# Allowlist: only send what the image needs to the build context, so local files (secrets, data, editor state)
+# can never end up in an image layer. tests/ is included because `docker compose run --rm test` runs jest in the image.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!tests/
+
+# Never send secrets, even if one ends up inside an allowlisted directory
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

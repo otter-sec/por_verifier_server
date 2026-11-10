@@ -46,7 +46,7 @@ Get a paginated list of all verifications.
 
 **Query Parameters:**
 - `page` (optional, default: 1): Page number
-- `pageSize` (optional, default: 10): Number of items per page
+- `pageSize` (optional, default: 10, max: 100): Number of items per page, larger values are clamped to 100
 
 **Response:**
 ```json
@@ -128,7 +128,7 @@ Main page showing a list of all verifications with pagination.
 
 **Query Parameters:**
 - `page` (optional, default: 1): Page number
-- `pageSize` (optional, default: 20): Number of items per page
+- `pageSize` (optional, default: 20, max: 100): Number of items per page, larger values are clamped to 100
 
 ### GET `/verification/:identifier`
 View details of a specific verification.
