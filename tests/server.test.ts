@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import express, { Express } from 'express';
 import app from '../src/index';
-import { verificationQueue } from '../src/queue';
+import { verificationQueue } from '../src/processor';
 
 interface VerificationResponse {
     id: number;

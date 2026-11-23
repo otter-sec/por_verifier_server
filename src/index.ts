@@ -9,8 +9,10 @@ import { findVerification, upsertVerification, getAllVerifications, deleteVerifi
 import { downloadAndUnzip } from "./verifier";
 import { cacheMiddleware, invalidateCacheEntries, invalidateGlobalCacheEntries } from "./middlewares/cache";
 import { VerificationResponse, VerificationQuery } from "./types/verification";
-import { verificationQueue as queue } from "./queue";
+import { verificationQueue as queue } from "./processor";
 import { parseFinalProof, formatMoney, getProverVersion, isVersionNewer } from "./utils";
+import { acquireLock, releaseLock } from "./lock";
+import { stockRouter, adminStockRouter } from "./stocks";
 
 let curProverVersion = "unknown";
 
@@ -37,30 +39,6 @@ app.set('layout', 'layout');
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(express.json());
-
-// Mutex-like lock mechanism
-let isVerifying = false;
-const verificationQueue: Array<() => void> = [];
-
-function acquireLock(): Promise<void> {
-    return new Promise((resolve) => {
-        if (!isVerifying) {
-            isVerifying = true;
-            resolve();
-        } else {
-            verificationQueue.push(resolve);
-        }
-    });
-}
-
-function releaseLock(): void {
-    const nextResolver = verificationQueue.shift();
-    if (nextResolver) {
-        nextResolver();
-    } else {
-        isVerifying = false;
-    }
-}
 
 //////////////////
 /*====ROUTES====*/
@@ -346,9 +324,11 @@ adminRouter.post("/verifications/:id/delete", (async (req: Request, res: Respons
 
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
+app.use('/api', stockRouter);
 
 // Mount admin routes
 app.use("/api/admin", adminRouter);
+app.use("/api/admin", adminStockRouter);
 
 //////////////////
 

@@ -18,7 +18,7 @@ export interface VerificationJob {
 class VerificationQueue extends EventEmitter {
     private queue: VerificationJob[] = [];
     private isProcessing: boolean = false;
-    private concurrency: number = 2; // Number of jobs to process concurrently
+    private concurrency: number = 1; // Number of jobs to process concurrently
     private activeJobs: number = 0;
 
     constructor() {
@@ -32,6 +32,7 @@ class VerificationQueue extends EventEmitter {
         this.emit('jobAdded');
     }
 
+    // Process the next PoR job in the queue
     private async processNextJob(): Promise<void> {
         if (this.isProcessing || this.activeJobs >= this.concurrency || this.queue.length === 0) {
             return;
