@@ -3,6 +3,9 @@ FROM ubuntu:latest
 # install dependencies using apt
 RUN apt-get update && apt-get install -y nodejs npm git curl sudo
 
+# install pnpm
+RUN npm install -g pnpm
+
 # install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -18,8 +21,8 @@ COPY . /app
 
 # install dependencies and build
 WORKDIR /app
-RUN npm install
-RUN npm run build
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
 
 # create database directory and set permissions
 RUN mkdir -p /db && chown -R node:node /db
@@ -29,4 +32,4 @@ EXPOSE 3000
 
 # run the server
 USER node
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]
